@@ -6,12 +6,14 @@ from pynput.keyboard import Key, Controller
 class SmackLocker:
     def __init__(self, display_code=False, custom_msg=None, position=None, size=12):
         self.root = tk.Tk()
+        self.root.title('SMAK Locker')
         self.typed_keys = []
         self.unlock_sequence = ['q', 'u', 'i', 't']
         self.display_code = display_code
         self.custom_msg = custom_msg
         self.position = position
         self.size = size
+        self.labels = []
         self.setup_window()
         self.start_keyboard_listener()
 
@@ -23,22 +25,22 @@ class SmackLocker:
         if self.display_code:
             self.display_unlock_sequence()
 
-    def display_unlock_sequence(self, ):
+    def display_unlock_sequence(self):
+
         custom_font = font.Font(family="Helvetica", size=self.size, weight="bold", underline=1)
         
-        if self.custom_msg is None:
-            self.custom_msg=f'Type in "{"".join(self.unlock_sequence)}" (without quotes) to unlock the screen',
+        unlock_sequence = ''.join(self.unlock_sequence)
+        self.custom_msg = f'Type in "{unlock_sequence}" (without quotes) to unlock the screen'
             
         if self.position:
-            
             label = tk.Label(
                 self.root, text=self.custom_msg,
                 fg='white', bg='black', font=custom_font
             )
             x, y = self.position
             label.place(relx=x, rely=y, anchor='center')
+            self.labels.append(label)
         else:
-            
             positions = [
                 ('top', 'left'), ('top', 'center'), ('top', 'right'),
                 ('center', 'left'), ('center', 'center'), ('center', 'right'),
@@ -64,12 +66,21 @@ class SmackLocker:
                     x = 0.9
                 
                 label.place(relx=x, rely=y, anchor='center')
-
+                self.labels.append(label)
+    
     def change_unlock_sequence(self):
+        ## give focus on input box temporarily by removing topmost on tk window
+        self.root.attributes('-topmost', False)
+        
         new_sequence = simpledialog.askstring("Input", "Enter new unlock sequence:", parent=self.root)
+        
+        self.root.attributes('-topmost', True)
+        
         if new_sequence:
             self.unlock_sequence = list(new_sequence)
             self.display_unlock_sequence()
+        
+        self.root.focus_force() 
 
     def on_press(self, key):
         if hasattr(key, 'char') and key.char:
