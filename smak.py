@@ -3,8 +3,8 @@ from tkinter import simpledialog, font
 from pynput import keyboard
 from pynput.keyboard import Key, Controller
 
-class SmackLocker:
-    def __init__(self, display_code=False, custom_msg=None, position=None, size=12):
+class SmakLocker:
+    def __init__(self, display_code=False, custom_msg=None, position=None, size=12, alpha=0.1):
         self.root = tk.Tk()
         self.root.title('SMAK Locker')
         self.typed_keys = []
@@ -12,7 +12,13 @@ class SmackLocker:
         self.display_code = display_code
         self.custom_msg = custom_msg
         self.position = position
+        self.positions = [
+            "top left", "top center", "top right",
+            "center left", "center center", "center right",
+            "bottom left", "bottom center", "bottom right"
+        ]
         self.size = size
+        self.alpha = alpha
         self.labels = []
         self.setup_window()
         self.start_keyboard_listener()
@@ -20,12 +26,18 @@ class SmackLocker:
     def setup_window(self):
         self.root.configure(bg='black')
         self.root.attributes('-fullscreen', True, '-topmost', True)
-        self.root.attributes('-alpha', 0.1)
+        self.root.attributes('-alpha', self.alpha)
         self.root.overrideredirect(True)
         if self.display_code:
             self.display_unlock_sequence()
 
     def display_unlock_sequence(self):
+        # Clear existing labels if any
+        if hasattr(self, 'labels'):
+            for label in self.labels:
+                label.destroy()
+        else:
+            self.labels = []
 
         custom_font = font.Font(family="Helvetica", size=self.size, weight="bold", underline=1)
         
@@ -41,12 +53,8 @@ class SmackLocker:
             label.place(relx=x, rely=y, anchor='center')
             self.labels.append(label)
         else:
-            positions = [
-                ('top', 'left'), ('top', 'center'), ('top', 'right'),
-                ('center', 'left'), ('center', 'center'), ('center', 'right'),
-                ('bottom', 'left'), ('bottom', 'center'), ('bottom', 'right')
-            ]
-            for vertical, horizontal in positions:
+            for position in self.positions:
+                vertical, horizontal = position.split()
                 label = tk.Label(
                     self.root, text=self.custom_msg,
                     fg='white', bg='black', font=custom_font
@@ -57,14 +65,14 @@ class SmackLocker:
                     y = 0.5
                 else:  # bottom
                     y = 0.9
-                
+
                 if horizontal == 'left':
                     x = 0.1
                 elif horizontal == 'center':
                     x = 0.5
                 else:  # right
                     x = 0.9
-                
+
                 label.place(relx=x, rely=y, anchor='center')
                 self.labels.append(label)
     
@@ -106,6 +114,6 @@ class SmackLocker:
         self.root.mainloop()
 
 if __name__ == "__main__":
-    app = SmackLocker(display_code=True)
+    app = SmakLocker(display_code=True)
     app.change_unlock_sequence()
     app.run()
