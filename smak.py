@@ -33,8 +33,10 @@
         - Upload to pypi
         - give the pypi and the github the picture, an icon. 
     
-    
+    Bug:
+        - Disable keyboard listening when other dialog windows are active. 
     '''
+from print_tricks import pt
 
 import os, json
 import tkinter as tk
@@ -66,6 +68,7 @@ class SmakLocker:
         self.size = size
         self.alpha = alpha
         self.labels = []
+        self.listener = None
         
         self.load_settings()
         
@@ -168,36 +171,18 @@ class SmakLocker:
                 
                 label.place(relx=x, rely=y, anchor='center')
                 self.labels.append(label)
+                
+    def start_keyboard_listener(self):
+        pt('start listener')
+        self.listener = keyboard.Listener(on_press=self.on_press)
+        self.listener.start()
 
-    def change_password(self):
-        ## give focus on input box temporarily by removing topmost on tk window
-        self.root.attributes('-topmost', False)
-        
-        new_sequence = simpledialog.askstring("Input", "Enter new unlock sequence:", parent=self.root)
-        
-        self.root.attributes('-topmost', True)
-        
-        if new_sequence:
-            self.password = list(new_sequence)
-            self.display_password()
-        
-        self.root.focus_force() 
 
-    def open_settings_dialog(self):
-        ## Temporarily disable topmost
-        self.root.attributes('-topmost', False)
-        initial_settings = {
-            'show_password': self.show_password,
-            'custom_msg': self.custom_msg,
-            'position': self.position,
-            'size': self.size,
-            'alpha': self.alpha
-        }
-        settings_dialog = SettingsDialog(self, self.root, initial_settings)
-        self.root.wait_window(settings_dialog.top)
-        self.root.attributes('-topmost', True)
-        self.root.deiconify()
-        self.root.focus_force()
+    def stop_keyboard_listener(self):
+        pt('stop listener')
+        if self.listener:
+            self.listener.stop()
+            self.listener = None
 
     def on_press(self, key):
         if hasattr(key, 'char') and key.char:
@@ -214,10 +199,38 @@ class SmakLocker:
 
         if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
             self.root.destroy()
+            
+    def change_password(self):
+        self.stop_keyboard_listener()  # Stop listening while dialog is open
+        self.root.attributes('-topmost', False)
+        
+        new_sequence = simpledialog.askstring("Input", "Enter new unlock sequence:", parent=self.root)
+        
+        self.root.attributes('-topmost', True)
+        
+        if new_sequence:
+            self.password = list(new_sequence)
+            self.display_password()
+        
+        self.root.focus_force()
+        self.start_keyboard_listener()  # Restart listening after dialog is closed
 
-    def start_keyboard_listener(self):
-        listener = keyboard.Listener(on_press=self.on_press)
-        listener.start()
+    def open_settings_dialog(self):
+        self.stop_keyboard_listener()  # Stop listening while dialog is open
+        self.root.attributes('-topmost', False)
+        initial_settings = {
+            'show_password': self.show_password,
+            'custom_msg': self.custom_msg,
+            'position': self.position,
+            'size': self.size,
+            'alpha': self.alpha
+        }
+        settings_dialog = SettingsDialog(self, self.root, initial_settings)
+        self.root.wait_window(settings_dialog.top)
+        self.root.attributes('-topmost', True)
+        self.root.deiconify()
+        self.root.focus_force()
+        self.start_keyboard_listener()  # Restart listening after dialog is closed
 
     def run(self):
         self.root.mainloop()
