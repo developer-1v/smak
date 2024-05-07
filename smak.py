@@ -44,19 +44,18 @@ from pynput.keyboard import Key, Controller
 
 
 class SmakLocker:
-    def __init__(self, display_code=False, custom_msg=None, position=None, size=12, alpha=0.1):
+    def __init__(self, show_password=False, custom_msg=None, position=None, size=12, alpha=0.1):
         smak_folder_path = os.path.join(os.path.expanduser('~'), 'Documents', 'SMAK')
         if not os.path.exists(smak_folder_path):
             os.makedirs(smak_folder_path)
         self.settings_path = os.path.join(smak_folder_path, 'SMAK_settings.json')
         
         
-        self.load_settings()
         self.root = tk.Tk()
         self.root.title('SMAK Locker')
         self.typed_keys = []
         self.password = ['q', 'u', 'i', 't']
-        self.display_code = display_code
+        self.show_password = show_password
         self.custom_msg = custom_msg
         self.position = position
         self.positions = [
@@ -67,6 +66,9 @@ class SmakLocker:
         self.size = size
         self.alpha = alpha
         self.labels = []
+        
+        self.load_settings()
+        
         self.setup_window()
         self.start_keyboard_listener()
 
@@ -74,14 +76,14 @@ class SmakLocker:
         try:
             with open(self.settings_path, 'r') as file:
                 settings = json.load(file)
-            self.display_code = settings.get('display_code', False)
+            self.show_password = settings.get('show_password', False)
             self.custom_msg = settings.get('custom_msg', None)
             self.position = settings.get('position', None)
             self.size = settings.get('size', 12)
             self.alpha = settings.get('alpha', 0.1)
             self.password = settings.get('password', ['q', 'u', 'i', 't'])
         except FileNotFoundError:
-            self.display_code = False
+            self.show_password = False
             self.custom_msg = None
             self.position = None
             self.size = 12
@@ -90,7 +92,7 @@ class SmakLocker:
 
     def save_settings(self):
         settings = {
-            'display_code': self.display_code,
+            'show_password': self.show_password,
             'custom_msg': self.custom_msg,
             'position': self.position,
             'size': self.size,
@@ -101,7 +103,7 @@ class SmakLocker:
             json.dump(settings, file)
 
     def update_settings(self, new_settings):
-        self.display_code = new_settings['display_code']
+        self.show_password = new_settings['show_password']
         self.custom_msg = new_settings['custom_msg']
         self.position = new_settings['position']
         self.size = new_settings['size']
@@ -119,7 +121,7 @@ class SmakLocker:
         # Reapply override-redirect if needed
         self.root.overrideredirect(True)
         self.root.attributes('-alpha', self.alpha)
-        if self.display_code:
+        if self.show_password:
             self.display_password()
 
     def display_password(self):
@@ -185,7 +187,7 @@ class SmakLocker:
         ## Temporarily disable topmost
         self.root.attributes('-topmost', False)
         initial_settings = {
-            'display_code': self.display_code,
+            'show_password': self.show_password,
             'custom_msg': self.custom_msg,
             'position': self.position,
             'size': self.size,
@@ -251,9 +253,9 @@ class SettingsDialog:
         ###################
         ## Display Password
         ###################
-        self.display_code_var = tk.BooleanVar(value=self.settings['display_code'])
-        self.display_code_checkbox = tk.Checkbutton(self.top, text="Display Unlock Code", variable=self.display_code_var)
-        self.display_code_checkbox.pack()
+        self.show_password_var = tk.BooleanVar(value=self.settings['show_password'])
+        self.show_password_checkbox = tk.Checkbutton(self.top, text="Display Unlock Code", variable=self.show_password_var)
+        self.show_password_checkbox.pack()
 
         ###################
         ## Custom Message
@@ -323,7 +325,7 @@ class SettingsDialog:
                 position = None
 
             new_settings = {
-                'display_code': self.display_code_var.get(),
+                'show_password': self.show_password_var.get(),
                 'custom_msg': self.custom_msg_entry.get(),
                 'position': position,
                 'size': int(self.size_entry.get()),
@@ -342,7 +344,7 @@ class SettingsDialog:
         self.master.focus_force()
         
 if __name__ == "__main__":
-    app = SmakLocker(display_code=True)
+    app = SmakLocker(show_password=True)
     app.change_password()
     app.open_settings_dialog()
     app.run()
