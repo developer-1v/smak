@@ -54,7 +54,7 @@ class SmakLocker:
             "center left", "center center", "center right",
             "bottom left", "bottom center", "bottom right"
         ]
-    
+
     def __init__(self, show_password=False, custom_msg=None, position=None, size=12, alpha=0.1):
         self.root = tk.Tk()
 
@@ -179,12 +179,12 @@ class SmakLocker:
                 
                 label.place(relx=x, rely=y, anchor='center')
                 self.labels.append(label)
-                
+
     def start_keyboard_listener(self):
         pt('start listener')
-        self.listener = keyboard.Listener(on_press=self.on_press)
+        # Suppress keys to prevent them from being processed further by the system
+        self.listener = keyboard.Listener(on_press=self.on_press, suppress=True)
         self.listener.start()
-
 
     def stop_keyboard_listener(self):
         pt('stop listener')
@@ -193,6 +193,19 @@ class SmakLocker:
             self.listener = None
 
     def on_press(self, key):
+
+        if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
+            ## TODO: Temporary destroy for testing. 
+            # self.root.destroy()
+            
+            ## Keep the return for production.
+            return
+
+        ## TODO: Temporary destroy for testing. 
+        if hasattr(key, 'char') and key.char == '1':
+            ## TODO: Temporary destroy for testing. 
+            self.root.destroy()
+
         if hasattr(key, 'char') and key.char:
             key_value = key.char
         else:
@@ -205,9 +218,6 @@ class SmakLocker:
         if self.typed_keys == self.password:
             self.root.destroy()
 
-        if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
-            self.root.destroy()
-            
     def change_password(self):
         self.stop_keyboard_listener()  # Stop listening while dialog is open
         self.root.attributes('-topmost', False)
@@ -246,24 +256,26 @@ class SmakLocker:
         self.setup_window()
         self.root.mainloop()
 
+class SystemTrayApp:
+    def __init__(self, smak_app):
+        self.smak_app = smak_app
+        self.icon = None
 
-    def run_systray(self):
-
+    def run(self):
         # Create an image for the systray icon (1x1 black square)
         icon_image = Image.new('RGB', (64, 64), 'black')
         menu = (
-            item('Lock', self.run),
-            item('Settings', self.open_settings_dialog),
-            item('Quit', self.quit_systray)
+            item('Lock', self.locker_app.run),
+            item('Settings', self.locker_app.open_settings_dialog),
+            item('Quit', self.quit)
         )
         self.icon = Icon("SmakLocker", icon_image, "SmakLocker", menu)
         self.icon.run()
 
-    def quit_systray(self):
-        self.icon.stop()
+    def quit(self):
+        if self.icon:
+            self.icon.stop()
         sys.exit()
-
-
         
 class SettingsDialog:
     def __init__(self, smak_locker, master, initial_settings):
@@ -529,10 +541,11 @@ class SettingsDialog:
 if __name__ == "__main__":
     app = SmakLocker(show_password=True)
     # app.change_password()
-    app.open_settings_dialog()
-    systray = False
+    # app.open_settings_dialog()
+    systray = True
     if systray:
-        app.run_systray()
+        tray_app = SystemTrayApp(app)
+        tray_app.run()
     else:
         app.run()
 
