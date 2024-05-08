@@ -38,7 +38,7 @@
     '''
 from print_tricks import pt
 
-import os, json
+import os, json, ctypes
 import tkinter as tk
 from tkinter import simpledialog, font
 from pynput import keyboard
@@ -56,17 +56,11 @@ class SmakLocker:
         ]
     
     def __init__(self, show_password=False, custom_msg=None, position=None, size=12, alpha=0.1):
-        smak_folder_path = os.path.join(os.path.expanduser('~'), 'Documents', 'SMAK')
-        if not os.path.exists(smak_folder_path):
-            os.makedirs(smak_folder_path)
-        self.settings_path = os.path.join(smak_folder_path, 'SMAK_settings.json')
-        
-        
         self.root = tk.Tk()
-        self.root.title('SMAK Locker')
+
         self.typed_keys = []
         self.password = ['q', 'u', 'i', 't']
-        self.show_custom_message = True
+        self.show_custom_msg = True
         self.show_password = show_password
         self.custom_msg = custom_msg
         self.position = position
@@ -79,10 +73,15 @@ class SmakLocker:
         self.load_settings()
 
     def load_settings(self):
+        smak_folder_path = os.path.join(os.path.expanduser('~'), 'Documents', 'SMAK')
+        if not os.path.exists(smak_folder_path):
+            os.makedirs(smak_folder_path)
+        self.settings_path = os.path.join(smak_folder_path, 'SMAK_settings.json')
+        
         try:
             with open(self.settings_path, 'r') as file:
                 settings = json.load(file)
-            self.show_custom_message = settings.get('show_custom_message', True)
+            self.show_custom_msg = settings.get('show_custom_msg', True)
             self.show_password = settings.get('show_password', False)
             self.custom_msg = settings.get('custom_msg', None)
             self.position = settings.get('position', None)
@@ -90,7 +89,7 @@ class SmakLocker:
             self.alpha = settings.get('alpha', 0.1)
             self.password = settings.get('password', ['q', 'u', 'i', 't'])
         except FileNotFoundError:
-            self.show_custom_message = True
+            self.show_custom_msg = True
             self.show_password = False
             self.custom_msg = None
             self.position = None
@@ -100,7 +99,7 @@ class SmakLocker:
 
     def save_settings(self):
         settings = {
-            'show_custom_message': self.show_custom_message,
+            'show_custom_msg': self.show_custom_msg,
             'show_password': self.show_password,
             'custom_msg': self.custom_msg,
             'position': self.position,
@@ -122,10 +121,13 @@ class SmakLocker:
         self.setup_window()
 
     def setup_window(self):
+        self.root.title('SMAK Locker')
+        
         self.root.configure(bg='black')
         # Temporarily unset override-redirect to change fullscreen attribute
         self.root.overrideredirect(False)
-        self.root.attributes('-fullscreen', True)
+        self.root.state('zoomed')
+        # self.root.attributes('-fullscreen', True)
         self.root.attributes('-topmost', True)
         # Reapply override-redirect if needed
         self.root.overrideredirect(True)
@@ -225,7 +227,7 @@ class SmakLocker:
         self.stop_keyboard_listener()  # Stop listening while dialog is open
         self.root.attributes('-topmost', False)
         initial_settings = {
-            'show_custom_message': self.show_custom_message,
+            'show_custom_msg': self.show_custom_msg,
             'show_password': self.show_password,
             'custom_msg': self.custom_msg,
             'position': self.position,
@@ -280,18 +282,59 @@ class SettingsDialog:
         self.top.grab_set()
         self.top.focus_set()
         
+        self.setup_window_contents()
+
+        
+    def setup_window_contents(self):
+        
+        self.setup_window_appearance()
+        self.setup_message_display_options()
+        self.setup_password_section()
+        
+        
+        ###################
+        ## Save Button
+        ###################
+        self.save_button = tk.Button(self.top, text="Save Settings", command=self.save_settings)
+        self.save_button.pack()
+
         ###################
         ## Center the window
         ###################
-        self.top.update_idletasks()  # Update internal states
-        w = self.top.winfo_screenwidth()
-        h = self.top.winfo_screenheight()
+        self.center_window()
+        
+        ###################
+        ## Close window
+        ###################
+        self.top.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def get_screen_size(self):
+        ## Set DPI awareness (No longer necessary, but will be more seamless/integrated)
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+
+        hdc = ctypes.windll.user32.GetDC(None)
+
+        width = ctypes.windll.gdi32.GetDeviceCaps(hdc, 118)  ## 118 is HORZRES
+        height = ctypes.windll.gdi32.GetDeviceCaps(hdc, 117)  ## 117 is VERTRES
+
+        ctypes.windll.user32.ReleaseDC(None, hdc)
+
+        return width, height
+
+    def center_window(self):
+        ###################
+        ## Center the window based on its center
+        ###################
+        
+        self.top.update()  # Update internal states
+        w, h = self.get_screen_size()
         size = tuple(int(_) for _ in self.top.geometry().split('+')[0].split('x'))
-        x = w // 2 - size[0] // 2
-        y = h // 2 - size[1] // 2
+        x = (w // 2) - (size[0] // 2)
+        y = (h // 2) - (size[1] // 2)
         self.top.geometry("+{}+{}".format(x, y))
+        pt(w, h, size, x, y)
         
-        
+    def setup_window_appearance(self):
         #########################################################
         ## Invisible Window Appearance
         #########################################################
@@ -299,7 +342,7 @@ class SettingsDialog:
             self.top, text="Invisible Window Appearance", 
             font=("Helvetica", self.title_font_size, "bold"))
         window_section_label.pack(pady=(10, 5))
-        
+    
         ###################
         ## Alpha Transparency
         ###################
@@ -307,46 +350,50 @@ class SettingsDialog:
         self.alpha_entry = tk.Entry(self.top)
         self.alpha_entry.insert(0, str(self.settings['alpha']))
         self.alpha_entry.pack()
-        
+    
+    def setup_message_display_options(self):
         #########################################################
-        ## Message Display Options
+        ## Message Message Options
         #########################################################
         window_section_label = tk.Label(
-            self.top, text="Display Management", 
+            self.top, text="Display Message", 
             font=("Helvetica", self.title_font_size, "bold"))
         window_section_label.pack(pady=(10, 5))
 
         ###################
-        ## show password
-        ###################
-        
-        self.show_password_var = tk.BooleanVar(value=self.settings['show_password'])
-        self.show_password_checkbox = tk.Checkbutton(self.top, text="Show password on lock screen", variable=self.show_password_var)
-        self.show_password_checkbox.pack()
-        
-        ###################
-        ## Show Custom Message
-        ###################
-        self.show_custom_message_var = tk.BooleanVar(value=self.settings['show_custom_message'])
-        self.show_custom_message_checkbox = tk.Checkbutton(self.top, 
-                                                    text="Show Custom Message", 
-                                                    variable=self.show_custom_message_var)
-        self.show_custom_message_checkbox.pack()
-        
-        ###################
-        ## Custom Message
-        ###################
-        self.custom_msg_label = tk.Label(self.top, text="Custom Message:")
-        self.custom_msg_label.pack()
+        ## show password or custom message Radio Buttons
+        ###################        # Variable to hold the display option
+        self.display_option_var = tk.IntVar()
+        self.display_option_var.set(1 if self.settings['show_password'] else 2)
+
+        ## Frame for 2 radio buttons
+        radio_frame = tk.Frame(self.top)
+        radio_frame.pack()
+
+        self.radio_password = tk.Radiobutton(
+            radio_frame, text="Show password on lock screen", variable=self.display_option_var, value=1)
+        self.radio_password.pack(side=tk.TOP, anchor='w')  # Anchor west to align the buttons
+
+        self.radio_custom_msg = tk.Radiobutton(
+            radio_frame, text="Show custom message:", variable=self.display_option_var, value=2)
+        self.radio_custom_msg.pack(side=tk.TOP, anchor='w')  # Anchor west to align the buttons
+
+        ## Custom Message Entry (only enabled if custom message option is selected)
         self.custom_msg_entry = tk.Entry(self.top)
         self.custom_msg_entry.insert(0, self.settings['custom_msg'])
         self.custom_msg_entry.pack()
+        self.custom_msg_entry.config(state='normal' if self.display_option_var.get() == 2 else 'disabled')
+
+        ## Update the state of the custom message entry based on these radio button selection
+        self.radio_password.config(command=self.update_display_option)
+        self.radio_custom_msg.config(command=self.update_display_option)
+
 
         ###################
         ## Font Size
         ###################
         self.size_label = tk.Label(self.top, text="Font Size:")
-        self.size_label.pack()
+        self.size_label.pack(pady=(10, 0))
         self.size_entry = tk.Entry(self.top)
         self.size_entry.insert(0, str(self.settings['size']))
         self.size_entry.pack()
@@ -355,7 +402,7 @@ class SettingsDialog:
         ## Positions to display Unlock message(s)
         ###################
         positions_title_label = tk.Label(self.top, text="Message Location:")
-        positions_title_label.pack(pady=(10, 0))  # Add some vertical padding for better separation
+        positions_title_label.pack(pady=(10, 0))
 
         
         
@@ -392,7 +439,7 @@ class SettingsDialog:
 
 
 
-
+    def setup_password_section(self):
         #########################################################
         ## Password Section
         #########################################################
@@ -427,23 +474,16 @@ class SettingsDialog:
         self.enable_encryption_checkbox = tk.Checkbutton(self.top, text="Encrypt Password", variable=self.enable_encryption_var)
         self.enable_encryption_checkbox.pack()
 
-
-        
-        ###################
-        ## Save Button
-        ###################
-        self.save_button = tk.Button(self.top, text="Save Settings", command=self.save_settings)
-        self.save_button.pack()
-
-        ###################
-        ## Close window
-        ###################
-        self.top.protocol("WM_DELETE_WINDOW", self.on_close)
-
     def on_close(self):
         self.top.destroy()
         self.master.deiconify()  
         self.master.focus_force()
+
+    def update_display_option(self):
+        if self.display_option_var.get() == 1:
+            self.custom_msg_entry.config(state='disabled')
+        else:
+            self.custom_msg_entry.config(state='normal')
 
     def save_settings(self):
         current_password = self.current_password_entry.get()
@@ -468,13 +508,14 @@ class SettingsDialog:
                 position = None
 
             new_settings = {
-                'show_password': self.show_password_var.get(),
-                'show_custom_message': self.show_custom_message_var.get(),
-                'custom_msg': self.custom_msg_entry.get(),
+                'show_password': self.display_option_var.get() == 1,
+                'show_custom_msg': self.display_option_var.get() == 2,
+                'custom_msg': self.custom_msg_entry.get() if self.display_option_var.get() == 2 else None,
+                
                 'position': position,
                 'size': int(self.size_entry.get()),
                 'alpha': float(self.alpha_entry.get()),
-                # 'password': self.smak_locker.password  # Assuming password is managed elsewhere
+                # 'password': self.smak_locker.password
             }
             self.smak_locker.update_settings(new_settings)
             self.on_close()
