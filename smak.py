@@ -20,7 +20,9 @@
         - Make this into an optional exe. 
         
     Startup with windows
-        - Figure this out
+        - Figure this out:
+        - CMD & therefore maybe the startup command:
+            python smak.py --systray
         
     Real Icon:
         - Maybe a babies hand with a rattle, smashing the keyboard. 
@@ -33,8 +35,6 @@
         - Upload to pypi
         - give the pypi and the github the picture, an icon. 
     
-    Bug:
-        - Disable keyboard listening when other dialog windows are active. 
     '''
 from print_tricks import pt
 
@@ -44,6 +44,9 @@ from tkinter import simpledialog, font
 from pynput import keyboard
 from pynput.keyboard import Key, Controller
 
+from pystray import MenuItem as item, Icon
+from PIL import Image
+import sys
 
 class SmakLocker:
     def __init__(self, show_password=False, custom_msg=None, position=None, size=12, alpha=0.1):
@@ -72,8 +75,6 @@ class SmakLocker:
         
         self.load_settings()
         
-        self.setup_window()
-        self.start_keyboard_listener()
 
     def load_settings(self):
         try:
@@ -233,8 +234,32 @@ class SmakLocker:
         self.start_keyboard_listener()  # Restart listening after dialog is closed
 
     def run(self):
+        self.start_keyboard_listener()
+        self.setup_window()
         self.root.mainloop()
 
+
+    def run_systray(self):
+
+        # Create an image for the systray icon (1x1 black square)
+        icon_image = Image.new('RGB', (64, 64), 'black')
+        menu = (
+            item('Lock', self.show_lock_screen),
+            item('Settings', self.open_settings_dialog),
+            item('Quit', self.quit_systray)
+        )
+        icon = Icon("SmakLocker", icon_image, "SmakLocker", menu)
+        icon.run()
+
+    def show_lock_screen(self):
+        self.root.deiconify()
+
+    def quit_systray(self, icon):
+        icon.stop()
+        sys.exit()
+
+
+        
 class SettingsDialog:
     def __init__(self, smak_locker, master, initial_settings):
         self.smak_locker = smak_locker
@@ -355,10 +380,15 @@ class SettingsDialog:
         self.top.destroy()
         self.master.deiconify()  
         self.master.focus_force()
-        
+
+
 if __name__ == "__main__":
     app = SmakLocker(show_password=True)
-    app.change_password()
-    app.open_settings_dialog()
-    app.run()
+    # app.change_password()
+    # app.open_settings_dialog()
+    systray = True
+    if systray:
+        app.run_systray()
+    else:
+        app.run()
 
