@@ -49,6 +49,12 @@ from PIL import Image
 import sys
 
 class SmakLocker:
+    positions = [
+            "top left", "top center", "top right",
+            "center left", "center center", "center right",
+            "bottom left", "bottom center", "bottom right"
+        ]
+    
     def __init__(self, show_password=False, custom_msg=None, position=None, size=12, alpha=0.1):
         smak_folder_path = os.path.join(os.path.expanduser('~'), 'Documents', 'SMAK')
         if not os.path.exists(smak_folder_path):
@@ -60,26 +66,23 @@ class SmakLocker:
         self.root.title('SMAK Locker')
         self.typed_keys = []
         self.password = ['q', 'u', 'i', 't']
+        self.show_custom_message = True
         self.show_password = show_password
         self.custom_msg = custom_msg
         self.position = position
-        self.positions = [
-            "top left", "top center", "top right",
-            "center left", "center center", "center right",
-            "bottom left", "bottom center", "bottom right"
-        ]
+
         self.size = size
         self.alpha = alpha
         self.labels = []
         self.listener = None
         
         self.load_settings()
-        
 
     def load_settings(self):
         try:
             with open(self.settings_path, 'r') as file:
                 settings = json.load(file)
+            self.show_custom_message = settings.get('show_custom_message', True)
             self.show_password = settings.get('show_password', False)
             self.custom_msg = settings.get('custom_msg', None)
             self.position = settings.get('position', None)
@@ -87,6 +90,7 @@ class SmakLocker:
             self.alpha = settings.get('alpha', 0.1)
             self.password = settings.get('password', ['q', 'u', 'i', 't'])
         except FileNotFoundError:
+            self.show_custom_message = True
             self.show_password = False
             self.custom_msg = None
             self.position = None
@@ -96,6 +100,7 @@ class SmakLocker:
 
     def save_settings(self):
         settings = {
+            'show_custom_message': self.show_custom_message,
             'show_password': self.show_password,
             'custom_msg': self.custom_msg,
             'position': self.position,
@@ -220,6 +225,7 @@ class SmakLocker:
         self.stop_keyboard_listener()  # Stop listening while dialog is open
         self.root.attributes('-topmost', False)
         initial_settings = {
+            'show_custom_message': self.show_custom_message,
             'show_password': self.show_password,
             'custom_msg': self.custom_msg,
             'position': self.position,
@@ -244,18 +250,15 @@ class SmakLocker:
         # Create an image for the systray icon (1x1 black square)
         icon_image = Image.new('RGB', (64, 64), 'black')
         menu = (
-            item('Lock', self.show_lock_screen),
+            item('Lock', self.run),
             item('Settings', self.open_settings_dialog),
             item('Quit', self.quit_systray)
         )
-        icon = Icon("SmakLocker", icon_image, "SmakLocker", menu)
-        icon.run()
+        self.icon = Icon("SmakLocker", icon_image, "SmakLocker", menu)
+        self.icon.run()
 
-    def show_lock_screen(self):
-        self.root.deiconify()
-
-    def quit_systray(self, icon):
-        icon.stop()
+    def quit_systray(self):
+        self.icon.stop()
         sys.exit()
 
 
@@ -267,6 +270,8 @@ class SettingsDialog:
         self.top = tk.Toplevel(master)
         self.top.title("SMAK Settings")
         self.settings = initial_settings
+        
+        self.title_font_size = 12
 
         ###################
         ## Focus the window, Capture all input. Aka "Modal" 
@@ -285,16 +290,49 @@ class SettingsDialog:
         x = w // 2 - size[0] // 2
         y = h // 2 - size[1] // 2
         self.top.geometry("+{}+{}".format(x, y))
-
-
+        
+        
+        #########################################################
+        ## Invisible Window Appearance
+        #########################################################
+        window_section_label = tk.Label(
+            self.top, text="Invisible Window Appearance", 
+            font=("Helvetica", self.title_font_size, "bold"))
+        window_section_label.pack(pady=(10, 5))
+        
+        ###################
+        ## Alpha Transparency
+        ###################
+        self.alpha_label = tk.Label(self.top, text="Alpha (Transparency):").pack()
+        self.alpha_entry = tk.Entry(self.top)
+        self.alpha_entry.insert(0, str(self.settings['alpha']))
+        self.alpha_entry.pack()
+        
+        #########################################################
+        ## Message Display Options
+        #########################################################
+        window_section_label = tk.Label(
+            self.top, text="Display Management", 
+            font=("Helvetica", self.title_font_size, "bold"))
+        window_section_label.pack(pady=(10, 5))
 
         ###################
-        ## Display Password
+        ## show password
         ###################
+        
         self.show_password_var = tk.BooleanVar(value=self.settings['show_password'])
-        self.show_password_checkbox = tk.Checkbutton(self.top, text="Display Unlock Code", variable=self.show_password_var)
+        self.show_password_checkbox = tk.Checkbutton(self.top, text="Show password on lock screen", variable=self.show_password_var)
         self.show_password_checkbox.pack()
-
+        
+        ###################
+        ## Show Custom Message
+        ###################
+        self.show_custom_message_var = tk.BooleanVar(value=self.settings['show_custom_message'])
+        self.show_custom_message_checkbox = tk.Checkbutton(self.top, 
+                                                    text="Show Custom Message", 
+                                                    variable=self.show_custom_message_var)
+        self.show_custom_message_checkbox.pack()
+        
         ###################
         ## Custom Message
         ###################
@@ -305,44 +343,92 @@ class SettingsDialog:
         self.custom_msg_entry.pack()
 
         ###################
-        ## Positions
-        ###################
-        positions_title_label = tk.Label(self.top, text="Positions:")
-        positions_title_label.pack()
-        
-        positions_rows = [
-            self.smak_locker.positions[:3],  ## First row (top positions)
-            self.smak_locker.positions[3:6], ## Second row (center positions)
-            self.smak_locker.positions[6:]   ## Third row (bottom positions)
-        ]
-        
-        for row in positions_rows:
-            position_row_label = tk.Label(self.top, text=', '.join(row))
-            position_row_label.pack()
-            
-        self.position_entry = tk.Entry(self.top)
-        if self.settings['position']:
-            self.position_entry.insert(0, f"{self.settings['position'][0]}, {self.settings['position'][1]}")
-        self.position_entry.pack()
-
-        ###################
-        ## Fint Size
+        ## Font Size
         ###################
         self.size_label = tk.Label(self.top, text="Font Size:")
         self.size_label.pack()
         self.size_entry = tk.Entry(self.top)
         self.size_entry.insert(0, str(self.settings['size']))
         self.size_entry.pack()
-
+        
         ###################
-        ## Alpha Transparency
+        ## Positions to display Unlock message(s)
         ###################
-        self.alpha_label = tk.Label(self.top, text="Alpha (Transparency):")
-        self.alpha_label.pack()
-        self.alpha_entry = tk.Entry(self.top)
-        self.alpha_entry.insert(0, str(self.settings['alpha']))
-        self.alpha_entry.pack()
+        positions_title_label = tk.Label(self.top, text="Message Location:")
+        positions_title_label.pack(pady=(10, 0))  # Add some vertical padding for better separation
 
+        
+        
+        self.position_entry = tk.Entry(self.top)
+        if self.settings['position']:
+            self.position_entry.insert(0, f"{self.settings['position'][0]}, {self.settings['position'][1]}")
+        self.position_entry.pack()
+
+        locations_label = tk.Label(self.top, 
+            text="(type in a single location,\nor leave blank for all locations at once)")
+        locations_label.pack(pady=(0, 2))  
+
+        possible_locations_label = tk.Label(self.top, 
+            text="Possible Locations:")
+        possible_locations_label.pack(pady=(0, 2))  
+        
+        positions_rows = [
+            SmakLocker.positions[:3],  ## First row (top positions)
+            SmakLocker.positions[3:6], ## Second row (center positions)
+            SmakLocker.positions[6:]   ## Third row (bottom positions)
+        ]
+        
+
+        for i, row in enumerate(positions_rows):
+            if i == 0:  # First row
+                text = '(' + ', '.join(row)
+            elif i == len(positions_rows) - 1:  # Last row
+                text = ', '.join(row) + ')'
+            else:
+                text = ', '.join(row)
+            
+            position_row_label = tk.Label(self.top, text=text)
+            position_row_label.pack()
+
+
+
+
+        #########################################################
+        ## Password Section
+        #########################################################
+        
+        
+        password_section_label = tk.Label(
+            self.top, 
+            text="Password Management", 
+            font=("Helvetica", self.title_font_size, "bold"))
+        password_section_label.pack(pady=(10, 5))
+
+        ## Current Password
+        self.current_password_label = tk.Label(self.top, text="Current Password:")
+        self.current_password_label.pack()
+        self.current_password_entry = tk.Entry(self.top, show="*")
+        self.current_password_entry.pack()
+
+        ## New Password
+        self.new_password_label = tk.Label(self.top, text="New Password:")
+        self.new_password_label.pack()
+        self.new_password_entry = tk.Entry(self.top, show="*")
+        self.new_password_entry.pack()
+
+        ## Confirm New Password
+        self.confirm_password_label = tk.Label(self.top, text="Confirm New Password:")
+        self.confirm_password_label.pack()
+        self.confirm_password_entry = tk.Entry(self.top, show="*")
+        self.confirm_password_entry.pack()
+
+        ## Enable Encryption
+        self.enable_encryption_var = tk.BooleanVar(value=False)
+        self.enable_encryption_checkbox = tk.Checkbutton(self.top, text="Encrypt Password", variable=self.enable_encryption_var)
+        self.enable_encryption_checkbox.pack()
+
+
+        
         ###################
         ## Save Button
         ###################
@@ -354,7 +440,26 @@ class SettingsDialog:
         ###################
         self.top.protocol("WM_DELETE_WINDOW", self.on_close)
 
+    def on_close(self):
+        self.top.destroy()
+        self.master.deiconify()  
+        self.master.focus_force()
+
     def save_settings(self):
+        current_password = self.current_password_entry.get()
+        new_password = self.new_password_entry.get()
+        confirm_password = self.confirm_password_entry.get()
+        enable_encryption = self.enable_encryption_var.get()
+
+        if new_password and new_password == confirm_password:
+            if self.smak_locker.validate_password(current_password):
+                self.smak_locker.change_password(new_password, enable_encryption)
+            else:
+                tk.messagebox.showerror("Error", "Current password is incorrect.")
+        elif new_password:
+            tk.messagebox.showerror("Error", "New passwords do not match.")
+        
+        
         try:
             position_input = self.position_entry.get().strip()
             if position_input:
@@ -364,11 +469,12 @@ class SettingsDialog:
 
             new_settings = {
                 'show_password': self.show_password_var.get(),
+                'show_custom_message': self.show_custom_message_var.get(),
                 'custom_msg': self.custom_msg_entry.get(),
                 'position': position,
                 'size': int(self.size_entry.get()),
                 'alpha': float(self.alpha_entry.get()),
-                'password': self.smak_locker.password  # Assuming password is managed elsewhere
+                # 'password': self.smak_locker.password  # Assuming password is managed elsewhere
             }
             self.smak_locker.update_settings(new_settings)
             self.on_close()
@@ -376,17 +482,14 @@ class SettingsDialog:
         except ValueError:
             tk.messagebox.showerror("Error", "Invalid input for position. Please enter two comma-separated numbers.")
 
-    def on_close(self):
-        self.top.destroy()
-        self.master.deiconify()  
-        self.master.focus_force()
+
 
 
 if __name__ == "__main__":
     app = SmakLocker(show_password=True)
     # app.change_password()
-    # app.open_settings_dialog()
-    systray = True
+    app.open_settings_dialog()
+    systray = False
     if systray:
         app.run_systray()
     else:
