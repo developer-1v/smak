@@ -266,7 +266,7 @@ class SmakLocker:
         if self.root and hasattr(self.root, 'tk') and self.root.winfo_exists():
             self.root.destroy()
         self.is_running = False  
-        
+
 class SystemTrayApp:
     def __init__(self):
         self.icon = None
@@ -289,9 +289,10 @@ class SystemTrayApp:
         self.app.run()
 
     def open_settings_dialog(self):
-        if not self.app:
-            self.app = SmakLocker(show_password=True)
-        self.app.open_settings_dialog()
+        # if not self.app:
+        #     self.app = SmakLocker(show_password=True)
+        # self.app.open_settings_dialog()
+        settings_dialog = SettingsDialog()
 
     def quit(self):
         if self.icon:
@@ -348,8 +349,9 @@ class SettingsPath:
 class SettingsDialog:
     def __init__(self, smak_app=None):
         self.smak_app = smak_app
-        self.top = tk.Toplevel()
+        self.top = tk.Tk()
         self.top.title("SMAK Settings")
+
         self.settings = self.load_settings()
         
         self.title_font_size = 12
@@ -362,7 +364,9 @@ class SettingsDialog:
         # self.top.attributes('-topmost', True)
         
         self.setup_window_contents()
-        
+        self.top.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.top.mainloop()
+
     def load_settings(self):
         settings_path = SettingsPath.get_path()
         try:
@@ -378,7 +382,7 @@ class SettingsDialog:
                 'size': 12,
                 'alpha': 0.1
             }
-            
+
     def setup_window_contents(self):
         self.setup_window_appearance()
         self.setup_message_display_options()
@@ -387,9 +391,9 @@ class SettingsDialog:
         self.save_button = tk.Button(self.top, text="Save Settings", command=self.save_settings)
         self.save_button.pack()
 
+        self.top.update()
         self.center_window()
-        
-        self.top.protocol("WM_DELETE_WINDOW", self.on_close)
+        # self.top.update()
 
     def get_screen_size(self):
         ## Set DPI awareness (No longer necessary, but will be more seamless/integrated)
@@ -405,14 +409,12 @@ class SettingsDialog:
         return width, height
 
     def center_window(self):
-        self.top.update()  # Update internal states
         w, h = self.get_screen_size()
         size = tuple(int(_) for _ in self.top.geometry().split('+')[0].split('x'))
         x = (w // 2) - (size[0] // 2)
         y = (h // 2) - (size[1] // 2)
         self.top.geometry("+{}+{}".format(x, y))
-
-
+        pt(w,h,x,y)
 
     def setup_window_appearance(self):
         #########################################################
@@ -553,6 +555,7 @@ class SettingsDialog:
         self.enable_encryption_checkbox.pack()
 
     def on_close(self):
+        pt("on_close")
         self.top.destroy()
         
         # if self.master:
@@ -603,8 +606,6 @@ class SettingsDialog:
             
         except ValueError:
             tk.messagebox.showerror("Error", "Invalid input for position. Please enter two comma-separated numbers.")
-
-        self.on_close()
 
 
 if __name__ == "__main__":
