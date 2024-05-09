@@ -49,7 +49,7 @@ from pystray import MenuItem as item, Icon
 from PIL import Image
 import sys
 
-class SmakLocker:
+class SmakStopper:
     positions = [
             "top left", "top center", "top right",
             "center left", "center center", "center right",
@@ -72,7 +72,7 @@ class SmakLocker:
         self.labels = []
         self.listener = None
         
-        self.is_running = False
+        self.is_running = False  ## might be able to delete these vars
         
         self.load_settings()
 
@@ -124,7 +124,7 @@ class SmakLocker:
     def setup_window(self):
         if not self.root:
             return
-        self.root.title('SMAK Locker')
+        self.root.title('SMAK Stopper')
         
         self.root.configure(bg='black')
         # Temporarily unset override-redirect to change fullscreen attribute
@@ -271,7 +271,8 @@ class SmakLocker:
 class SystemTrayApp:
     def __init__(self):
         self.icon = None
-        self.app = None  # Reference to the SmakLocker instance
+        self.app = None  # Reference to the SmakStopper instance
+        self.settings_window = None 
 
     def run(self):
         icon_image = Image.new('RGB', (64, 64), 'white')
@@ -280,20 +281,35 @@ class SystemTrayApp:
             item('Settings', self.open_settings_dialog),
             item('Quit', self.quit)
         )
-        self.icon = Icon("Smak Locker", icon_image, "SMAK Locker", menu)
+        self.icon = Icon("SMAK Stopper", icon_image, "SMAK Stopper", menu)
         self.icon.run()
 
     def lock(self):
         if self.app and self.app.is_running:
             self.app.close()  # Ensure the previous instance is properly closed
-        self.app = SmakLocker(show_password=True)
+        self.app = SmakStopper(show_password=True)
         self.app.run()
 
     def open_settings_dialog(self):
-        # if not self.app:
-        #     self.app = SmakLocker(show_password=True)
-        # self.app.open_settings_dialog()
-        settings_dialog = SettingsDialog()
+        if self.settings_window is not None:
+            pt('if')
+            self.settings_window.top.lift() 
+            self.settings_window.top.focus_force()
+            self.settings_window.top.grab_set()
+            self.settings_window.top.focus_set()
+            self.settings_window.top.attributes('-topmost', True)
+        else:
+            # Otherwise, create a new settings window
+            pt('else')
+            self.settings_window = SettingsDialog(system_tray_app=self)
+            self.settings_window.top.protocol("WM_DELETE_WINDOW", self.on_settings_close)
+            self.settings_window.run()
+
+    def on_settings_close(self):
+        pt('on settings close')
+        # Cleanup when the settings window is closed
+        self.settings_window.on_close()
+        self.settings_window = None
 
     def quit(self):
         if self.icon:
@@ -348,14 +364,24 @@ class SettingsPath:
         return settings_path
 
 class SettingsDialog:
-    def __init__(self, smak_app=None):
+    def __init__(self, smak_app=None, system_tray_app=None):
+
         self.smak_app = smak_app
+        self.system_tray_app = system_tray_app
         self.top = tk.Tk()
         self.top.title("SMAK Settings")
 
         self.settings = self.load_settings()
         
         self.title_font_size = 12
+        
+
+        
+        self.setup_window_contents()
+        self.top.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        ## Set DPI awareness (No longer necessary, but will be more seamless/integrated)
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
         
         ###################
         ## Focus the window, Capture all input. Aka "Modal" 
@@ -364,10 +390,30 @@ class SettingsDialog:
         # self.top.focus_set()
         # self.top.attributes('-topmost', True)
         
-        self.setup_window_contents()
-        self.top.protocol("WM_DELETE_WINDOW", self.on_close)
+    def run(self):
         self.top.mainloop()
 
+    def on_close(self):
+        pt("on_close")
+        # self.top.grab_release()
+        # self.top.destroy()
+        # self.top.iconify()
+        # self.top.withdraw()
+        if self.system_tray_app:
+            self.system_tray_app.settings_window = None
+        self.top.quit()
+        self.top.update()
+        self.top.destroy()
+
+
+        # if self.system_tray_app:
+        #     self.system_tray_app.settings_window = None
+        # del self
+        
+        # if self.master:
+        #     self.master.deiconify()  
+        #     self.master.focus_force()
+        
     def load_settings(self):
         settings_path = SettingsPath.get_path()
         try:
@@ -397,8 +443,7 @@ class SettingsDialog:
         # self.top.update()
 
     def get_screen_size(self):
-        ## Set DPI awareness (No longer necessary, but will be more seamless/integrated)
-        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+
 
         hdc = ctypes.windll.user32.GetDC(None)
 
@@ -410,6 +455,7 @@ class SettingsDialog:
         return width, height
 
     def center_window(self):
+        pt("center_window")
         w, h = self.get_screen_size()
         size = tuple(int(_) for _ in self.top.geometry().split('+')[0].split('x'))
         x = (w // 2) - (size[0] // 2)
@@ -503,9 +549,9 @@ class SettingsDialog:
         possible_locations_label.pack(pady=(0, 2))  
         
         positions_rows = [
-            SmakLocker.positions[:3],  ## First row (top positions)
-            SmakLocker.positions[3:6], ## Second row (center positions)
-            SmakLocker.positions[6:]   ## Third row (bottom positions)
+            SmakStopper.positions[:3],  ## First row (top positions)
+            SmakStopper.positions[3:6], ## Second row (center positions)
+            SmakStopper.positions[6:]   ## Third row (bottom positions)
         ]
         
 
@@ -555,13 +601,7 @@ class SettingsDialog:
         self.enable_encryption_checkbox = tk.Checkbutton(self.top, text="Encrypt Password", variable=self.enable_encryption_var)
         self.enable_encryption_checkbox.pack()
 
-    def on_close(self):
-        pt("on_close")
-        self.top.destroy()
-        
-        # if self.master:
-        #     self.master.deiconify()  
-        #     self.master.focus_force()
+
 
     def update_display_option(self):
         if self.display_option_var.get() == 1:
@@ -610,10 +650,11 @@ class SettingsDialog:
 
 
 if __name__ == "__main__":
+
     systray = True
     if systray:
         tray_app = SystemTrayApp()
         tray_app.run()
     else:
-        app = SmakLocker(show_password=True)
+        app = SmakStopper(show_password=True)
         app.run()
