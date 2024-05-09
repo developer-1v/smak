@@ -11,10 +11,11 @@
         - After x minutes/seconds/hours, have this auto-lock the screen. 
         
     systray icon
-        - Integrate by default with a systray icon. 
-        - But keep it optional to not have a systray icon (if its loaded via another systray app
-        like the edge engine systray app).
-        - Also allow some settings to be changeable from a systray menu
+        - bug: can open multiple instances of settings. And the instances then are not closeable. 
+            - probably has to do with the mainloop. How do we shut down the mainloop for this and 
+            for the main lock screen window? 
+        - bug: 
+            - Can't disable the lock screen, and then re-enable it again. 
         
     EXE
         - Make this into an optional exe. 
