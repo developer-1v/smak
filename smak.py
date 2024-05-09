@@ -39,13 +39,13 @@
     '''
 from print_tricks import pt
 
-import os, json, ctypes
+import os, json, ctypes, threading
 import tkinter as tk
 from tkinter import simpledialog, font
 from pynput import keyboard
 from pynput.keyboard import Key, Controller
 
-from pystray import MenuItem as item, Icon
+from pystray import MenuItem as item, Icon, Menu
 from PIL import Image
 import sys
 
@@ -56,10 +56,11 @@ class SmakStopper:
             "bottom left", "bottom center", "bottom right"
         ]
 
-    def __init__(self, show_password=False, custom_msg=None, position=None, size=12, alpha=0.1):
+    def __init__(self, master, show_password=False, custom_msg=None, position=None, size=12, alpha=0.1):
         pt('init')
-        self.root = tk.Tk()
-
+        self.master = master
+        self.smak_window = tk.Toplevel(self.master)
+        
         self.typed_keys = []
         self.password = ['q', 'u', 'i', 't']
         self.show_custom_msg = True
@@ -77,39 +78,14 @@ class SmakStopper:
         self.load_settings()
 
     def load_settings(self):
-        self.settings_path = SettingsPath.get_path()
-        
-        try:
-            with open(self.settings_path, 'r') as file:
-                settings = json.load(file)
-            self.show_custom_msg = settings.get('show_custom_msg', True)
-            self.show_password = settings.get('show_password', False)
-            self.custom_msg = settings.get('custom_msg', None)
-            self.position = settings.get('position', None)
-            self.size = settings.get('size', 12)
-            self.alpha = settings.get('alpha', 0.1)
-            self.password = settings.get('password', ['q', 'u', 'i', 't'])
-        except FileNotFoundError:
-            self.show_custom_msg = True
-            self.show_password = False
-            self.custom_msg = None
-            self.position = None
-            self.size = 12
-            self.alpha = 0.1
-            self.password = ['q', 'u', 'i', 't']
-
-    def save_settings(self):
-        settings = {
-            'show_custom_msg': self.show_custom_msg,
-            'show_password': self.show_password,
-            'custom_msg': self.custom_msg,
-            'position': self.position,
-            'size': self.size,
-            'alpha': self.alpha,
-            'password': self.password
-        }
-        with open(self.settings_path, 'w') as file:
-            json.dump(settings, file)
+        settings = SettingsUtility.load_settings()
+        self.show_custom_msg = settings.get('show_custom_msg', True)
+        self.show_password = settings.get('show_password', False)
+        self.custom_msg = settings.get('custom_msg', None)
+        self.position = settings.get('position', None)
+        self.size = settings.get('size', 12)
+        self.alpha = settings.get('alpha', 0.1)
+        self.password = settings.get('password', ['q', 'u', 'i', 't'])
 
     def update_settings(self, new_settings):
         self.show_password = new_settings['show_password']
@@ -118,30 +94,32 @@ class SmakStopper:
         self.size = new_settings['size']
         self.alpha = new_settings['alpha']
         self.password = new_settings['password']
-        self.save_settings()
+        # self.save_settings()
         self.setup_window()
 
     def setup_window(self):
-        if not self.root:
+        if not self.smak_window:
             return
-        self.root.title('SMAK Stopper')
+        self.smak_window.title('SMAK Stopper')
+        self.smak_window.protocol("WM_DELETE_WINDOW", self.close)
+
         
-        self.root.configure(bg='black')
+        self.smak_window.configure(bg='black')
         # Temporarily unset override-redirect to change fullscreen attribute
-        self.root.overrideredirect(False)
-        self.root.state('zoomed')
-        # self.root.attributes('-fullscreen', True)
-        self.root.attributes('-topmost', True)
+        self.smak_window.overrideredirect(False)
+        self.smak_window.state('zoomed')
+        # self.smak_window.attributes('-fullscreen', True)
+        self.smak_window.attributes('-topmost', True)
         # Reapply override-redirect if needed
-        self.root.overrideredirect(True)
-        self.root.attributes('-alpha', self.alpha)
+        self.smak_window.overrideredirect(True)
+        self.smak_window.attributes('-alpha', self.alpha)
         if self.show_password:
             self.display_password()
 
         self.is_running = True
         
     def display_password(self):
-        if not self.root:
+        if not self.smak_window:
             return
         # Clear existing labels if any
         if hasattr(self, 'labels'):
@@ -157,7 +135,7 @@ class SmakStopper:
         
         if self.position:
             label = tk.Label(
-                self.root, text=self.custom_msg,
+                self.smak_window, text=self.custom_msg,
                 fg='white', bg='black', font=custom_font
             )
             x, y = self.position
@@ -167,7 +145,7 @@ class SmakStopper:
             for position in self.positions:
                 vertical, horizontal = position.split()
                 label = tk.Label(
-                    self.root, text=self.custom_msg,
+                    self.smak_window, text=self.custom_msg,
                     fg='white', bg='black', font=custom_font
                 )
                 if vertical == 'top':
@@ -221,106 +199,24 @@ class SmakStopper:
         if self.typed_keys == self.password:
             self.close()
 
-    # def change_password(self):
-    #     self.stop_keyboard_listener()  # Stop listening while dialog is open
-    #     self.root.attributes('-topmost', False)
-        
-    #     new_sequence = simpledialog.askstring("Input", "Enter new unlock sequence:", parent=self.root)
-        
-    #     self.root.attributes('-topmost', True)
-        
-    #     if new_sequence:
-    #         self.password = list(new_sequence)
-    #         self.display_password()
-        
-    #     self.root.focus_force()
-    #     self.start_keyboard_listener()  # Restart listening after dialog is closed
-
-    # def open_settings_dialog(self):
-    #     self.stop_keyboard_listener()  # Stop listening while dialog is open
-    #     self.root.attributes('-topmost', False)
-    #     initial_settings = {
-    #         'show_custom_msg': self.show_custom_msg,
-    #         'show_password': self.show_password,
-    #         'custom_msg': self.custom_msg,
-    #         'position': self.position,
-    #         'size': self.size,
-    #         'alpha': self.alpha
-    #     }
-    #     settings_dialog = SettingsDialog(self)
-    #     self.root.wait_window(settings_dialog.top)
-    #     self.root.attributes('-topmost', True)
-    #     self.root.deiconify()
-    #     self.root.focus_force()
-    #     self.start_keyboard_listener()  # Restart listening after dialog is closed
-
     def run(self):
         if not self.is_running:  # Check if the application is not already running
             self.start_keyboard_listener()
             self.setup_window()
-            self.root.mainloop()
     
     def close(self):
         if self.listener:
             self.listener.stop()
             self.listener = None
-        if self.root and hasattr(self.root, 'tk') and self.root.winfo_exists():
-            self.root.destroy()
+        if self.smak_window and hasattr(self.smak_window, 'tk') and self.smak_window.winfo_exists():
+            self.smak_window.destroy()
         self.is_running = False  
 
-class SystemTrayApp:
-    def __init__(self):
-        self.icon = None
-        self.app = None  # Reference to the SmakStopper instance
-        self.settings_window = None 
 
-    def run(self):
-        icon_image = Image.new('RGB', (64, 64), 'white')
-        menu = (
-            item('Lock', self.lock),
-            item('Settings', self.open_settings_dialog),
-            item('Quit', self.quit)
-        )
-        self.icon = Icon("SMAK Stopper", icon_image, "SMAK Stopper", menu)
-        self.icon.run()
-
-    def lock(self):
-        if self.app and self.app.is_running:
-            self.app.close()  # Ensure the previous instance is properly closed
-        self.app = SmakStopper(show_password=True)
-        self.app.run()
-
-    def open_settings_dialog(self):
-        if self.settings_window is not None:
-            pt('if')
-            self.settings_window.top.lift() 
-            self.settings_window.top.focus_force()
-            self.settings_window.top.grab_set()
-            self.settings_window.top.focus_set()
-            self.settings_window.top.attributes('-topmost', True)
-        else:
-            # Otherwise, create a new settings window
-            pt('else')
-            self.settings_window = SettingsDialog(system_tray_app=self)
-            self.settings_window.top.protocol("WM_DELETE_WINDOW", self.on_settings_close)
-            self.settings_window.run()
-
-    def on_settings_close(self):
-        pt('on settings close')
-        # Cleanup when the settings window is closed
-        self.settings_window.on_close()
-        self.settings_window = None
-
-    def quit(self):
-        if self.icon:
-            self.icon.stop()
-        if self.app:
-            self.app.close()
-        sys.exit()
 
 class PasswordManager:
     def __init__(self, settings_path):
-        self.settings_path = SettingsPath.get_path()
+        self.settings_path = SettingsUtility.get_path()
 
     def load_settings(self):
         try:
@@ -351,71 +247,14 @@ class PasswordManager:
         self.save_settings(settings)
 
     def encrypt_password(self, password):
-        # Implement encryption logic here
+        ## TODO: Implement encryption
         return password 
 
-class SettingsPath:
+class SettingsUtility:
     
-    def get_path():
-        smak_folder_path = os.path.join(os.path.expanduser('~'), 'Documents', 'SMAK')
-        if not os.path.exists(smak_folder_path):
-            os.makedirs(smak_folder_path)
-        settings_path = os.path.join(smak_folder_path, 'SMAK_settings.json')
-        return settings_path
-
-class SettingsDialog:
-    def __init__(self, smak_app=None, system_tray_app=None):
-
-        self.smak_app = smak_app
-        self.system_tray_app = system_tray_app
-        self.top = tk.Tk()
-        self.top.title("SMAK Settings")
-
-        self.settings = self.load_settings()
-        
-        self.title_font_size = 12
-        
-
-        
-        self.setup_window_contents()
-        self.top.protocol("WM_DELETE_WINDOW", self.on_close)
-
-        ## Set DPI awareness (No longer necessary, but will be more seamless/integrated)
-        ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        
-        ###################
-        ## Focus the window, Capture all input. Aka "Modal" 
-        ###################
-        # self.top.grab_set()
-        # self.top.focus_set()
-        # self.top.attributes('-topmost', True)
-        
-    def run(self):
-        self.top.mainloop()
-
-    def on_close(self):
-        pt("on_close")
-        # self.top.grab_release()
-        # self.top.destroy()
-        # self.top.iconify()
-        # self.top.withdraw()
-        if self.system_tray_app:
-            self.system_tray_app.settings_window = None
-        self.top.quit()
-        self.top.update()
-        self.top.destroy()
-
-
-        # if self.system_tray_app:
-        #     self.system_tray_app.settings_window = None
-        # del self
-        
-        # if self.master:
-        #     self.master.deiconify()  
-        #     self.master.focus_force()
-        
-    def load_settings(self):
-        settings_path = SettingsPath.get_path()
+    @staticmethod
+    def load_settings():
+        settings_path = SettingsUtility.get_path()
         try:
             with open(settings_path, 'r') as file:
                 settings = json.load(file)
@@ -427,40 +266,94 @@ class SettingsDialog:
                 'custom_msg': None,
                 'position': None,
                 'size': 12,
-                'alpha': 0.1
+                'alpha': 0.1,
+                'password': ['q', 'u', 'i', 't']
             }
+    @staticmethod
+    def get_path():
+        smak_folder_path = os.path.join(os.path.expanduser('~'), 'Documents', 'SMAK')
+        if not os.path.exists(smak_folder_path):
+            os.makedirs(smak_folder_path)
+        settings_path = os.path.join(smak_folder_path, 'SMAK_settings.json')
+        return settings_path
 
+class SettingsDialog:
+    def __init__(self, master, smak_app=None, system_tray_app=None):
+        self.master = master
+        self.smak_app = smak_app
+        self.system_tray_app = system_tray_app
+        
+        self.password_manager = PasswordManager(SettingsUtility.get_path())
+
+        self.settings_window = tk.Toplevel(self.master)
+        self.settings_window.title("SMAK Settings")
+        
+        self.title_font_size = 12
+        
+        
+        # Set the window as modal and focus
+        self.settings_window.transient(self.master)  # Set as a transient window of the master window
+        self.settings_window.grab_set()  # Modal
+        self.settings_window.focus_set()  # Focus
+        self.settings_window.attributes('-topmost', True)
+        
+        # Setup window contents
+        self.load_settings()
+        self.setup_window_contents()
+        
+        ## Set DPI awareness (No longer necessary, but will be more seamless/integrated)
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    
+    def close(self):
+        # Properly release the grab and destroy the window
+        self.settings_window.grab_release()
+        self.settings_window.destroy()
+        if self.system_tray_app:
+            self.system_tray_app.settings_win_inst = None
+    
+    def load_settings(self):
+        self.settings = SettingsUtility.load_settings()
+        if self.settings is None:
+            self.settings = {
+                'show_custom_msg': True,
+                'show_password': False,
+                'custom_msg': None,
+                'position': None,
+                'size': 12,
+                'alpha': 0.1,
+                'password': ['q', 'u', 'i', 't']
+            }
+    
     def setup_window_contents(self):
         self.setup_window_appearance()
         self.setup_message_display_options()
         self.setup_password_section()
         
-        self.save_button = tk.Button(self.top, text="Save Settings", command=self.save_settings)
+        self.save_button = tk.Button(self.settings_window, text="Save Settings", command=self.save_settings)
         self.save_button.pack()
-
-        self.top.update()
+        
+        self.settings_window.update()
         self.center_window()
-        # self.top.update()
-
+        # self.settings_window.update()
+    
     def get_screen_size(self):
-
-
+        
         hdc = ctypes.windll.user32.GetDC(None)
-
+        
         width = ctypes.windll.gdi32.GetDeviceCaps(hdc, 118)  ## 118 is HORZRES
         height = ctypes.windll.gdi32.GetDeviceCaps(hdc, 117)  ## 117 is VERTRES
-
+        
         ctypes.windll.user32.ReleaseDC(None, hdc)
-
+        
         return width, height
-
+    
     def center_window(self):
         pt("center_window")
         w, h = self.get_screen_size()
-        size = tuple(int(_) for _ in self.top.geometry().split('+')[0].split('x'))
+        size = tuple(int(_) for _ in self.settings_window.geometry().split('+')[0].split('x'))
         x = (w // 2) - (size[0] // 2)
         y = (h // 2) - (size[1] // 2)
-        self.top.geometry("+{}+{}".format(x, y))
+        self.settings_window.geometry("+{}+{}".format(x, y))
         pt(w,h,x,y)
 
     def setup_window_appearance(self):
@@ -468,24 +361,27 @@ class SettingsDialog:
         ## Invisible Window Appearance
         #########################################################
         window_section_label = tk.Label(
-            self.top, text="Invisible Window Appearance", 
+            self.settings_window, text="Invisible Window Appearance", 
             font=("Helvetica", self.title_font_size, "bold"))
         window_section_label.pack(pady=(10, 5))
     
         ###################
         ## Alpha Transparency
         ###################
-        self.alpha_label = tk.Label(self.top, text="Alpha (Transparency):").pack()
-        self.alpha_entry = tk.Entry(self.top)
+        if self.settings is None:
+            return  # or load settings again or set default values
+        
+        self.alpha_label = tk.Label(self.settings_window, text="Alpha (Transparency):").pack()
+        self.alpha_entry = tk.Entry(self.settings_window)
         self.alpha_entry.insert(0, str(self.settings['alpha']))
         self.alpha_entry.pack()
-    
+
     def setup_message_display_options(self):
         #########################################################
         ## Message Message Options
         #########################################################
         window_section_label = tk.Label(
-            self.top, text="Display Message", 
+            self.settings_window, text="Display Message", 
             font=("Helvetica", self.title_font_size, "bold"))
         window_section_label.pack(pady=(10, 5))
 
@@ -496,7 +392,7 @@ class SettingsDialog:
         self.display_option_var.set(1 if self.settings['show_password'] else 2)
 
         ## Frame for 2 radio buttons
-        radio_frame = tk.Frame(self.top)
+        radio_frame = tk.Frame(self.settings_window)
         radio_frame.pack()
 
         self.radio_password = tk.Radiobutton(
@@ -508,8 +404,9 @@ class SettingsDialog:
         self.radio_custom_msg.pack(side=tk.TOP, anchor='w')  # Anchor west to align the buttons
 
         ## Custom Message Entry (only enabled if custom message option is selected)
-        self.custom_msg_entry = tk.Entry(self.top)
-        self.custom_msg_entry.insert(0, self.settings['custom_msg'])
+        custom_msg = self.settings['custom_msg'] if self.settings['custom_msg'] is not None else ''
+        self.custom_msg_entry = tk.Entry(self.settings_window)
+        self.custom_msg_entry.insert(0, custom_msg)
         self.custom_msg_entry.pack()
         self.custom_msg_entry.config(state='normal' if self.display_option_var.get() == 2 else 'disabled')
 
@@ -521,30 +418,30 @@ class SettingsDialog:
         ###################
         ## Font Size
         ###################
-        self.size_label = tk.Label(self.top, text="Font Size:")
+        self.size_label = tk.Label(self.settings_window, text="Font Size:")
         self.size_label.pack(pady=(10, 0))
-        self.size_entry = tk.Entry(self.top)
+        self.size_entry = tk.Entry(self.settings_window)
         self.size_entry.insert(0, str(self.settings['size']))
         self.size_entry.pack()
         
         ###################
         ## Positions to display Unlock message(s)
         ###################
-        positions_title_label = tk.Label(self.top, text="Message Location:")
+        positions_title_label = tk.Label(self.settings_window, text="Message Location:")
         positions_title_label.pack(pady=(10, 0))
 
         
         
-        self.position_entry = tk.Entry(self.top)
+        self.position_entry = tk.Entry(self.settings_window)
         if self.settings['position']:
             self.position_entry.insert(0, f"{self.settings['position'][0]}, {self.settings['position'][1]}")
         self.position_entry.pack()
 
-        locations_label = tk.Label(self.top, 
+        locations_label = tk.Label(self.settings_window, 
             text="(type in a single location,\nor leave blank for all locations at once)")
         locations_label.pack(pady=(0, 2))  
 
-        possible_locations_label = tk.Label(self.top, 
+        possible_locations_label = tk.Label(self.settings_window, 
             text="Possible Locations:")
         possible_locations_label.pack(pady=(0, 2))  
         
@@ -563,7 +460,7 @@ class SettingsDialog:
             else:
                 text = ', '.join(row)
             
-            position_row_label = tk.Label(self.top, text=text)
+            position_row_label = tk.Label(self.settings_window, text=text)
             position_row_label.pack()
 
     def setup_password_section(self):
@@ -573,35 +470,33 @@ class SettingsDialog:
         
         
         password_section_label = tk.Label(
-            self.top, 
+            self.settings_window, 
             text="Password Management", 
             font=("Helvetica", self.title_font_size, "bold"))
         password_section_label.pack(pady=(10, 5))
 
         ## Current Password
-        self.current_password_label = tk.Label(self.top, text="Current Password:")
+        self.current_password_label = tk.Label(self.settings_window, text="Current Password:")
         self.current_password_label.pack()
-        self.current_password_entry = tk.Entry(self.top, show="*")
+        self.current_password_entry = tk.Entry(self.settings_window, show="*")
         self.current_password_entry.pack()
 
         ## New Password
-        self.new_password_label = tk.Label(self.top, text="New Password:")
+        self.new_password_label = tk.Label(self.settings_window, text="New Password:")
         self.new_password_label.pack()
-        self.new_password_entry = tk.Entry(self.top, show="*")
+        self.new_password_entry = tk.Entry(self.settings_window, show="*")
         self.new_password_entry.pack()
 
         ## Confirm New Password
-        self.confirm_password_label = tk.Label(self.top, text="Confirm New Password:")
+        self.confirm_password_label = tk.Label(self.settings_window, text="Confirm New Password:")
         self.confirm_password_label.pack()
-        self.confirm_password_entry = tk.Entry(self.top, show="*")
+        self.confirm_password_entry = tk.Entry(self.settings_window, show="*")
         self.confirm_password_entry.pack()
 
         ## Enable Encryption
         self.enable_encryption_var = tk.BooleanVar(value=False)
-        self.enable_encryption_checkbox = tk.Checkbutton(self.top, text="Encrypt Password", variable=self.enable_encryption_var)
+        self.enable_encryption_checkbox = tk.Checkbutton(self.settings_window, text="Encrypt Password", variable=self.enable_encryption_var)
         self.enable_encryption_checkbox.pack()
-
-
 
     def update_display_option(self):
         if self.display_option_var.get() == 1:
@@ -610,6 +505,7 @@ class SettingsDialog:
             self.custom_msg_entry.config(state='normal')
 
     def save_settings(self):
+        # Validate and save new password if provided
         current_password = self.current_password_entry.get()
         new_password = self.new_password_entry.get()
         confirm_password = self.confirm_password_entry.get()
@@ -622,8 +518,8 @@ class SettingsDialog:
                 tk.messagebox.showerror("Error", "Current password is incorrect.")
         elif new_password:
             tk.messagebox.showerror("Error", "New passwords do not match.")
-        
-        
+
+        # Collect all other settings from the dialog
         try:
             position_input = self.position_entry.get().strip()
             if position_input:
@@ -635,26 +531,97 @@ class SettingsDialog:
                 'show_password': self.display_option_var.get() == 1,
                 'show_custom_msg': self.display_option_var.get() == 2,
                 'custom_msg': self.custom_msg_entry.get() if self.display_option_var.get() == 2 else None,
-                
                 'position': position,
                 'size': int(self.size_entry.get()),
                 'alpha': float(self.alpha_entry.get()),
-                # 'password': self.smak_app.password
             }
+            # Save settings to file
+            self.password_manager.save_settings(new_settings)
+
+            # Update SmakStopper instance if it is active
             if self.smak_app:
                 self.smak_app.update_settings(new_settings)
-            self.on_close()
+
+            self.close()
             
         except ValueError:
             tk.messagebox.showerror("Error", "Invalid input for position. Please enter two comma-separated numbers.")
 
 
-if __name__ == "__main__":
+class MainTKLoop:
+    def __init__(self, root) -> None:
+        self.root = root
+        # self.root.withdraw()
 
+    def run(self):
+        self.root.mainloop()    
+
+
+class WindowManager:
+    def __init__(self, root):
+        self.root = root
+        self.window1 = None
+        self.window2 = None
+
+    def toggle_window1(self):
+        if not self.window1 or not self.window1.smak_window.winfo_exists():
+
+            self.window1 = SmakStopper(master=self.root)
+            self.window1.run()
+        else:
+            self.window1.close()
+            self.window1 = None
+
+    def toggle_window2(self):
+        if not self.window2 or not self.window2.settings_window.winfo_exists():
+            self.window2 = SettingsDialog(master=self.root, smak_app=self.window1)
+        else:
+            self.window2.close()
+            self.window2 = None
+
+
+def setup_tray_icon(window_manager, main_app):
+    def quit_app(icon):
+        icon.stop()  # Stop the pystray icon
+        main_app.quit()  # Quit the main Tkinter application
+
+    icon_image = Image.new('RGB', (64, 64), color = 'red')  # Create a red icon
+    menu = (
+        item('__SMAK STOPPER__', lambda: None),
+        Menu.SEPARATOR,
+        item('Lock the Screen', lambda: window_manager.toggle_window1()),
+        item('Settings', lambda: window_manager.toggle_window2()),
+        item('Quit', lambda: quit_app(icon))
+    )
+    icon = Icon("Test Tray", icon_image, "Test Tray", menu)
+    icon.run()
+    
+    # def quit(self):
+    #     if self.icon:
+    #         self.icon.stop()
+    #     if self.app:
+    #         self.app.close()
+    #     sys.exit()
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    main_loop = MainTKLoop(root)
+    manager = WindowManager(root)
+    
     systray = True
     if systray:
-        tray_app = SystemTrayApp()
-        tray_app.run()
+        icon_thread = threading.Thread(
+            target=setup_tray_icon,
+            args=(manager, main_loop),
+            daemon=True)
+        icon_thread.start()
     else:
-        app = SmakStopper(show_password=True)
+        app = SmakStopper(root, show_password=True)
         app.run()
+        
+    main_loop.run()
+
+
+
+
