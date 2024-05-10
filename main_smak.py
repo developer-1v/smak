@@ -33,8 +33,11 @@ class Window1:
         self.window.destroy()
 
 class Window2:
-    def __init__(self, master):
+    def __init__(self, master, other_window=None):
         self.master = master
+        self.other_window = other_window
+        pt(self.other_window)
+        
         self.window = tk.Toplevel(self.master)
         self.window.title("Window 2")
         tk.Label(self.window, text="This is Window 2").pack()
