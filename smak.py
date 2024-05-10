@@ -2,23 +2,35 @@
     Encrypted Passwords:
         - Experiment with an actual encrypted system
         
-    All settings changeable:
-        - Custom font, 
-        - custom position will fail, at least if using text.
-        - custom text not showing up (not integrated)
 
     Double Click to launch:
         - like toddler keys
-        
+    
+    
     Bugs:
-        - hiding main window will hide smak_settings
-        
-    Auto Lock:
-        - After x minutes/seconds/hours, have this auto-lock the screen. 
+        - custom message not showing up again (might have something to do with positions)
+        - custom position will fail, at least if using text.
+        - quit button not properly quitting
+        - The default option is always set to custom message radio button, even after the 
+        settings loads. They should be dynamic and switch to whatever the settings had. 
+
+        - Several of the settings that I have, if they don't retrieve a variable, are
+        supposed to default to something. But I am manually setting this default at least
+        twice: Once in smak stopper, and at least one more time in settings dialog. The 
+        solution is have both of these refer to a variable in the settings utility
+        class. 
+        - There is a conflict between the words "show_message", which used to be 
+        "show_password" and the new "show_password". I think I need to call show_message
+        somethign completely random for a while while I figure out which is which. 
+            - Ands then show_message should be _show_message or just deleted completely. 
+            - Then in smak stopper, we don't even need to check for any of these, we just
+            load whatever the message is (whether it's nothing which is '' or default
+            password version, or a custom message.)
+
     
     EXE
         - Make this into an optional exe. 
-        
+    
     Startup with windows
         - Figure this out:
         - CMD & therefore maybe the startup command:
@@ -26,7 +38,9 @@
     
     Real Icon:
         - Maybe a babies hand with a rattle, smashing the keyboard. 
-        - This is from a larger image where maybe a cat's paw is also on the keyboard? 
+        - This is from a larger image where maybe a cat's paw is also on the keyboard?
+        
+    Swap Icons on lock
     
     Readme:
         - Make it a humorous readme. Maybe ask for help with this? 
@@ -38,15 +52,14 @@
     '''
 from print_tricks import pt
 
-import os, json, ctypes, threading
+import json, ctypes, threading, sys, os
 import tkinter as tk
-from tkinter import simpledialog, font
-from pynput import keyboard
+from tkinter import font
+from pynput import keyboard, mouse
 from pynput.keyboard import Key, Controller
 
 from pystray import MenuItem as item, Icon, Menu
 from PIL import Image
-import sys
 
 class SmakStopper:
     positions = [
@@ -77,26 +90,33 @@ class SmakStopper:
 
     def load_settings(self):
         settings = SettingsUtility.load_settings()
+        self.auto_lock_enabled = settings.get('auto_lock_enabled', False)
+        self.auto_lock_time = settings.get('auto_lock_time', 3600)
         self.message_type = settings.get('message_type', 'custom')
         self.show_nothing = settings.get('show_nothing', False)
+        self.show_password = settings.get('show_password', True)
         self.show_message = settings.get('show_message', False)
-        self.message_type = settings.get('message_type', 'custom')
-        self.custom_msg = settings.get('custom_msg', None)
+        self.show_custom_msg = settings.get('show_custom_msg', True)
         self.custom_msg = settings.get('custom_msg', None)
         self.position = settings.get('position', None)
         self.size = settings.get('size', 12)
         self.alpha = settings.get('alpha', 0.1)
         self.password = list(settings.get('password', self.password))
-        
 
     def update_settings(self, new_settings):
-        self.show_message = new_settings['show_message']
+        self.auto_lock_enabled = new_settings['auto_lock_enabled']
+        self.auto_lock_time = new_settings['auto_lock_time']
         self.message_type = new_settings['message_type']
+        self.show_nothing = new_settings['show_nothing']
+        self.show_password = new_settings['show_password']
+        self.show_message = new_settings['show_message']
+        self.show_custom_msg = new_settings['show_custom_msg']
         self.custom_msg = new_settings['custom_msg']
         self.position = new_settings['position']
         self.size = new_settings['size']
         self.alpha = new_settings['alpha']
         self.password = new_settings['password']
+        
         self.setup_window()
 
     def setup_window(self):
@@ -123,7 +143,7 @@ class SmakStopper:
         self.smak_window.attributes('-alpha', self.alpha)
         if self.show_message:
             self.display_message()
-        
+
     def display_message(self):
         # if not self.smak_window:
         #     return
@@ -216,7 +236,6 @@ class SmakStopper:
             self.smak_window.destroy()
 
 
-
 class PasswordManager:
     def __init__(self, settings_path):
         self.settings_path = SettingsUtility.get_path()
@@ -244,20 +263,29 @@ class SettingsUtility:
     @staticmethod
     def load_settings():
         settings_path = SettingsUtility.get_path()
+        default_settings = {
+            'auto_lock_enabled': False,
+            'auto_lock_time': 3600,
+            'message_type': 'custom',
+            'show_nothing': False,
+            'show_message': False,
+            'show_custom_msg': True,
+            'custom_msg': 'Display a Password Hint, or display password, or show nothing',
+            'position': None,
+            'size': 12,
+            'alpha': 0.1,
+            'password': 'quit'
+        }
         try:
             with open(settings_path, 'r') as file:
                 settings = json.load(file)
+                # Ensure all default settings are present
+                for key, value in default_settings.items():
+                    settings.setdefault(key, value)
         except FileNotFoundError:
-            return {
-                'message_type': 'custom',
-                'show_nothing': False,
-                'show_message': False,
-                'show_custom_msg': True,
-                'custom_msg': 'Display a Password Hint, or display password, or show nothing',                'position': None,
-                'size': 12,
-                'alpha': 0.1,
-                'password': 'quit'
-            }
+            settings = default_settings
+            
+
         return settings
 
     @staticmethod
@@ -278,16 +306,17 @@ class SettingsDialog:
 
         self.settings_window = tk.Toplevel(self.master)
         self.settings_window.title("SMAK Settings")
-        
+
+        self.display_option_var = tk.IntVar(value=3)  # Default to 'Show custom message'
+
         self.title_font_size = 12
         
-        # Set the window as modal and focus
-        self.settings_window.transient(self.master)  # Set as a transient window of the master window
-        self.settings_window.grab_set()  # Modal
-        self.settings_window.focus_set()  # Focus
+        ## Set the window as modal and focus
+        self.settings_window.transient(None)
+        self.settings_window.grab_set()  ## Modal
+        self.settings_window.focus_set()
         self.settings_window.attributes('-topmost', True)
         
-        # Setup window contents
         self.load_settings()
         self.setup_window_contents()
         
@@ -301,16 +330,7 @@ class SettingsDialog:
         if self.system_tray_app:
             self.system_tray_app.settings_win_inst = None
     
-    def setup_window_contents(self):
-        self.setup_window_appearance()
-        self.setup_message_display_options()
-        self.setup_password_section()
-        
-        self.save_button = tk.Button(self.settings_window, text="Save Settings", command=self.save_settings)
-        self.save_button.pack(pady=(25, 20))
-        
-        self.settings_window.update()
-        self.center_window()
+
     
     def get_screen_size(self):
         
@@ -324,21 +344,45 @@ class SettingsDialog:
         return width, height
     
     def center_window(self):
-        pt("center_window")
+        # pt("center_window")
         w, h = self.get_screen_size()
         size = tuple(int(_) for _ in self.settings_window.geometry().split('+')[0].split('x'))
         x = (w // 2) - (size[0] // 2)
         y = (h // 2) - (size[1] // 2)
         self.settings_window.geometry("+{}+{}".format(x, y))
-        pt(w,h,x,y)
+        # pt(w,h,x,y)
 
     def update_radio_display_option(self):
-        """Enable or disable the custom message entry based on the selected radio button."""
-        if self.display_option_var.get() == 3:
-            self.custom_msg_entry.config(state='normal', bg='white')
-        else:
-            self.custom_msg_entry.config(state='disabled', bg='light grey')
-    
+            """Enable or disable the custom message entry based on the selected radio button."""
+            if self.display_option_var.get() == 3:
+                self.custom_msg_entry.config(state='normal', bg='white')
+            else:
+                self.custom_msg_entry.config(state='disabled', bg='light grey')
+
+    def setup_window_contents(self):
+        self.setup_window_appearance()
+        self.setup_message_display_options()
+        self.setup_password_section()
+        self.setup_auto_lock_section()
+        self.setup_save_button()
+        self.update_radio_display_option()
+        self.settings_window.update()
+        self.center_window()
+
+    def setup_auto_lock_section(self):
+        auto_lock_label = tk.Label(self.settings_window, text="Auto Lock Settings", font=("Helvetica", self.title_font_size, "bold"))
+        auto_lock_label.pack(pady=(10, 5))
+
+        self.auto_lock_var = tk.BooleanVar(value=self.settings.get('auto_lock_enabled', False))
+        self.auto_lock_checkbox = tk.Checkbutton(self.settings_window, text="Enable Auto Lock", variable=self.auto_lock_var)
+        self.auto_lock_checkbox.pack()
+
+        self.auto_lock_time_label = tk.Label(self.settings_window, text="Auto Lock Time (minutes):")
+        self.auto_lock_time_label.pack()
+        self.auto_lock_time_entry = tk.Entry(self.settings_window)
+        self.auto_lock_time_entry.insert(0, str(self.settings.get('auto_lock_time', 50)))
+        self.auto_lock_time_entry.pack()
+        
     def setup_window_appearance(self):
         #########################################################
         ## Invisible Window Appearance
@@ -371,7 +415,6 @@ class SettingsDialog:
         ###################
         ## Show password, custom message, or nothing Radio Buttons
         ###################        
-        self.display_option_var = tk.IntVar(value=3)  # Default to 'Show custom message'
 
         ## Frame for radio buttons
         radio_frame = tk.Frame(self.settings_window)
@@ -421,8 +464,9 @@ class SettingsDialog:
         
         self.position_entry = tk.Entry(self.settings_window)
         if self.settings['position']:
-            self.position_entry.insert(0, f"{self.settings['position'][0]}, {self.settings['position'][1]}")
+            self.position_entry.insert(0, self.settings['position'])
         self.position_entry.pack()
+        pt(self.position_entry)
 
         locations_label = tk.Label(self.settings_window, 
             text="(type in a single location,\nor leave blank for all locations at once)")
@@ -485,6 +529,14 @@ class SettingsDialog:
         self.enable_encryption_checkbox = tk.Checkbutton(self.settings_window, text="Encrypt Password", variable=self.enable_encryption_var)
         self.enable_encryption_checkbox.pack()
 
+    def setup_save_button(self):
+        self.save_button = tk.Button(
+            self.settings_window, 
+            text="Save Settings", 
+            command=self.save_settings,
+            width=16, height=3
+            )
+        self.save_button.pack(pady=(25, 20))
     def change_password(self, new_password, enable_encryption=False):
         if enable_encryption:
             new_password = self.password_manager.encrypt_password(new_password)
@@ -502,9 +554,19 @@ class SettingsDialog:
                 'position': None,
                 'size': 12,
                 'alpha': 0.1,
-                'password': ['q', 'u', 'i', 't']
+                'password': 'quit',
+                'enable_encryption': False,
+                'auto_lock_enabled': False,
+                'auto_lock_time': 3600
             }
             
+        if self.settings.get('show_nothing', False):
+            self.display_option_var.set(1)
+        elif self.settings.get('show_message', False):
+            self.display_option_var.set(2)
+        elif self.settings.get('show_custom_msg', False):  # Default to True if none are set
+            self.display_option_var.set(3)
+
     def save_settings(self):
 
         current_password = self.current_password_entry.get()
@@ -521,58 +583,103 @@ class SettingsDialog:
         elif new_password:
             tk.messagebox.showerror("Error", "New passwords do not match.")
 
+        message_type = 'none'  # Default to 'none'
+        if self.display_option_var.get() == 2:
+            message_type = 'password'
+        elif self.display_option_var.get() == 3:
+            message_type = 'custom'
+
+        auto_lock_enabled = self.auto_lock_var.get()
+                
         try:
-            position_input = self.position_entry.get().strip()
+            auto_lock_time = float(self.auto_lock_time_entry.get())
+        except ValueError:
+            tk.messagebox.showerror("Error", "Invalid auto lock time. Please enter a valid number.")
+            return
+        
+        position = None
+        try:
+            position_input = self.position_entry.get().strip().replace(',', ' ')
+            pt(position_input)
             if position_input and position_input != '':
-                position = tuple(map(float, position_input.split(',')))
-            else:
-                position = None
+                valid_positions = set(SmakStopper.positions)
 
-            message_type = 'none'  # Default to 'none'
-            if self.display_option_var.get() == 2:
-                message_type = 'password'
-            elif self.display_option_var.get() == 3:
-                message_type = 'custom'
+                if position_input.lower() in valid_positions:
+                    position = position_input
 
-            new_settings = {
-                'message_type': message_type,
-                'show_nothing': self.display_option_var.get() == 1,
-                'show_message': self.display_option_var.get() == 2,
-                'show_custom_msg': self.display_option_var.get() == 3,
-                'custom_msg': self.custom_msg_entry.get('1.0', 'end-1c'),
-                'position': position,
-                'size': int(self.size_entry.get()),
-                'alpha': float(self.alpha_entry.get()),
-                'password': password,
-                'enable_encryption': enable_encryption,
-            }
-            settings_path = SettingsUtility.get_path()
-            with open(settings_path, 'w') as file:
-                json.dump(new_settings, file)
+        except ValueError as e:
+            tk.messagebox.showerror("Error", str(e) + " Please enter a valid position from the list: " + ', '.join(SmakStopper.positions))
+
+        new_settings = {
+            'auto_lock_enabled': auto_lock_enabled,
+            'auto_lock_time': auto_lock_time,
+            'message_type': message_type,
+            'show_nothing': self.display_option_var.get() == 1,
+            'show_message': self.display_option_var.get() == 2,
+            'show_custom_msg': self.display_option_var.get() == 3,
+            'custom_msg': self.custom_msg_entry.get('1.0', 'end-1c'),
+            'position': position,
+            'size': int(self.size_entry.get()),
+            'alpha': float(self.alpha_entry.get()),
+            'password': password,
+            'enable_encryption': enable_encryption,
+        }
+        
+        settings_path = SettingsUtility.get_path()
+        with open(settings_path, 'w') as file:
+            json.dump(new_settings, file)
 
             self.close()
-            
-        except ValueError:
-            tk.messagebox.showerror("Error", "Invalid input for position. Please enter two comma-separated numbers.")
+
 
 class MainTKLoop:
     def __init__(self, root) -> None:
         self.root = root
-        # self.root.withdraw()
+        self.root.withdraw()
 
     def run(self):
-        self.root.mainloop()    
-
+        self.root.mainloop()  
 
 class WindowManager:
     def __init__(self, root):
         self.root = root
         self.window1 = None
         self.window2 = None
+        self.auto_lock_timer = None
+        self.inactivity_delay = 50
+        
+        self.load_auto_lock_settings()
+
+        self.start_listeners()
+
+    def start_listeners(self):
+        self.keyboard_listener = keyboard.Listener(on_press=self.reset_auto_lock_timer)
+        self.mouse_listener = mouse.Listener(on_move=self.reset_auto_lock_timer)
+        self.keyboard_listener.start()
+        self.mouse_listener.start()
+
+    def load_auto_lock_settings(self):
+        settings = SettingsUtility.load_settings()
+        self.auto_lock_enabled = settings['auto_lock_enabled']
+        # Parse auto_lock_time as float to allow decimal values
+        self.inactivity_delay = float(settings['auto_lock_time']) * 60  # Convert minutes to seconds
+
+    def reset_auto_lock_timer(self, *args):
+        if self.auto_lock_enabled:
+            if self.auto_lock_timer is not None:
+                self.auto_lock_timer.cancel()
+            self.auto_lock_timer = threading.Timer(self.inactivity_delay, self.auto_lock)
+            self.auto_lock_timer.start()
+            
+    def reset_auto_lock_timer(self, *args):
+        """ Reset the auto-lock timer whenever there is keyboard or mouse activity. """
+        if self.auto_lock_timer is not None:
+            self.auto_lock_timer.cancel()
+        self.auto_lock_timer = threading.Timer(self.inactivity_delay, self.auto_lock)
+        self.auto_lock_timer.start()
 
     def toggle_window1(self):
         if not self.window1 or not self.window1.smak_window.winfo_exists():
-
             self.window1 = SmakStopper(master=self.root)
             self.window1.run()
         else:
@@ -586,12 +693,17 @@ class WindowManager:
             self.window2.close()
             self.window2 = None
 
-
-def setup_tray_icon(window_manager, main_app):
+    def auto_lock(self):
+        """ Trigger auto-lock by opening SmakStopper Window only if it's not already open."""
+        if not self.window1 or not self.window1.smak_window.winfo_exists():
+            self.root.after(0, self.toggle_window1)
+        
+def setup_tray_icon(window_manager):
     def quit_app(icon):
         icon.stop()
-        main_app.quit()
-
+        sys.exit()
+        
+    
     icon_image = Image.new('RGB', (64, 64), color = 'red')
     menu = (
         item('__SMAK STOPPER__', lambda: None),
@@ -603,7 +715,6 @@ def setup_tray_icon(window_manager, main_app):
     icon = Icon("Test Tray", icon_image, "Test Tray", menu)
     icon.run()
 
-
 if __name__ == "__main__":
     root = tk.Tk()
     main_loop = MainTKLoop(root)
@@ -613,7 +724,7 @@ if __name__ == "__main__":
     if systray:
         icon_thread = threading.Thread(
             target=setup_tray_icon,
-            args=(manager, main_loop),
+            args=(manager,),
             daemon=True)
         icon_thread.start()
     else:
