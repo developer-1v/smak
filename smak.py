@@ -7,10 +7,6 @@
     
     have checkmarks or click-holds that let you see the password your typing in. 
     
-    
-    Bugs:
-        - custom position will fail, at least if using text.
-        
     EXE
         - Make this into an optional exe. 
     
@@ -73,6 +69,7 @@ class SmakStopper:
 
     def load_settings(self):
         settings = SettingsUtility.load_settings()
+        self.settings = settings
         self.auto_lock_enabled = settings['auto_lock_enabled']
         self.auto_lock_time = settings['auto_lock_time']
         message_type = settings['message_type']
@@ -138,14 +135,13 @@ class SmakStopper:
         elif self.show_custom_msg:
             message = self.custom_msg  # Use the custom message set in settings
 
-        # Display the message on the lock screen
-        if message:
-            if self.position:
-                self.create_label(message, self.position)
-            else:
-                for position in self.positions:
-                    x, y = self.calculate_position(position)
-                    self.create_label(message, (x, y))
+        selected_positions = self.settings.get('selected_positions', self.positions)  # Default to all positions if none selected
+        if self.position:
+            self.create_label(message, self.position)
+        else:
+            for position in selected_positions:
+                x, y = self.calculate_position(position)
+                self.create_label(message, (x, y))
 
     def calculate_position(self, position):
         vertical, horizontal = position.split()
@@ -441,38 +437,47 @@ class SettingsDialog:
         positions_title_label.pack(pady=(10, 0))
 
         
+        self.position_checkboxes = {}
+        positions_frame = tk.LabelFrame(self.settings_window, text="Message Positions", padx=5, pady=5)
+        positions_frame.pack(padx=10, pady=10, fill="both", expand=True)
         
-        self.position_entry = tk.Entry(self.settings_window)
-        if self.settings['position']:
-            self.position_entry.insert(0, self.settings['position'])
-        self.position_entry.pack()
-        pt(self.position_entry)
-
-        locations_label = tk.Label(self.settings_window, 
-            text="(type in a single location,\nor leave blank for all locations at once)")
-        locations_label.pack(pady=(0, 2))  
-
-        possible_locations_label = tk.Label(self.settings_window, 
-            text="Possible Locations:")
-        possible_locations_label.pack(pady=(0, 2))  
-        
-        positions_rows = [
-            SmakStopper.positions[:3],  ## First row (top positions)
-            SmakStopper.positions[3:6], ## Second row (center positions)
-            SmakStopper.positions[6:]   ## Third row (bottom positions)
-        ]
-        
-
-        for i, row in enumerate(positions_rows):
-            if i == 0:  ## First row
-                text = '(' + ', '.join(row)
-            elif i == len(positions_rows) - 1:  ## Last row
-                text = ', '.join(row) + ')'
-            else:
-                text = ', '.join(row)
+        for i, position in enumerate(SmakStopper.positions):
+            var = tk.BooleanVar(value=True)  # Default all positions to checked
+            chk = tk.Checkbutton(positions_frame, text=position, variable=var)
+            chk.grid(row=i//3, column=i%3, sticky="w")
+            self.position_checkboxes[position] = var
             
-            position_row_label = tk.Label(self.settings_window, text=text)
-            position_row_label.pack()
+        # self.position_entry = tk.Entry(self.settings_window)
+        # if self.settings['position']:
+        #     self.position_entry.insert(0, self.settings['position'])
+        # self.position_entry.pack()
+        # pt(self.position_entry)
+
+        # locations_label = tk.Label(self.settings_window, 
+        #     text="(type in a single location,\nor leave blank for all locations at once)")
+        # locations_label.pack(pady=(0, 2))  
+
+        # possible_locations_label = tk.Label(self.settings_window, 
+        #     text="Possible Locations:")
+        # possible_locations_label.pack(pady=(0, 2))  
+        
+        # positions_rows = [
+        #     SmakStopper.positions[:3],  ## First row (top positions)
+        #     SmakStopper.positions[3:6], ## Second row (center positions)
+        #     SmakStopper.positions[6:]   ## Third row (bottom positions)
+        # ]
+        
+
+        # for i, row in enumerate(positions_rows):
+            # if i == 0:  ## First row
+            #     text = '(' + ', '.join(row)
+            # elif i == len(positions_rows) - 1:  ## Last row
+            #     text = ', '.join(row) + ')'
+            # else:
+            #     text = ', '.join(row)
+            
+            # position_row_label = tk.Label(self.settings_window, text=text)
+            # position_row_label.pack()
 
     def setup_password_section(self):
         #########################################################
@@ -517,6 +522,7 @@ class SettingsDialog:
             width=16, height=3
             )
         self.save_button.pack(pady=(25, 20))
+    
     def change_password(self, new_password, enable_encryption=False):
         if enable_encryption:
             new_password = self.password_manager.encrypt_password(new_password)
@@ -555,7 +561,6 @@ class SettingsDialog:
             message_type = 'custom'
 
         auto_lock_enabled = self.auto_lock_var.get()
-        
         try:
             auto_lock_time = float(self.auto_lock_time_entry.get())
             # Enforce a minimum auto-lock time of 0.1 minutes (6 seconds)
@@ -566,19 +571,23 @@ class SettingsDialog:
             tk.messagebox.showerror("Error", "Invalid auto lock time. Please enter a valid number.")
             return
         
-        position = None
-        try:
-            position_input = self.position_entry.get().strip().replace(',', ' ')
-            pt(position_input)
-            if position_input and position_input != '':
-                valid_positions = set(SmakStopper.positions)
+        
+        # position = None
+        # try:
+        #     position_input = self.position_entry.get().strip().replace(',', ' ')
+        #     pt(position_input)
+        #     if position_input and position_input != '':
+        #         valid_positions = set(SmakStopper.positions)
 
-                if position_input.lower() in valid_positions:
-                    position = position_input
+        #         if position_input.lower() in valid_positions:
+        #             position = position_input
 
-        except ValueError as e:
-            tk.messagebox.showerror("Error", str(e) + " Please enter a valid position from the list: " + ', '.join(SmakStopper.positions))
-
+        # except ValueError as e:
+        #     tk.messagebox.showerror("Error", str(e) + " Please enter a valid position from the list: " + ', '.join(SmakStopper.positions))
+        selected_positions = [pos for pos, var in self.position_checkboxes.items() if var.get()]
+        # new_settings['selected_positions'] = selected_positions
+        
+        
         new_settings = {
             'auto_lock_enabled': auto_lock_enabled,
             'auto_lock_time': auto_lock_time,
@@ -587,7 +596,7 @@ class SettingsDialog:
             'show_password': self.display_option_var.get() == 2,
             'show_custom_msg': self.display_option_var.get() == 3,
             'custom_msg': self.custom_msg_entry.get('1.0', 'end-1c'),
-            'position': position,
+            'selected_positions': selected_positions,
             'size': int(self.size_entry.get()),
             'alpha': float(self.alpha_entry.get()),
             'password': password,
