@@ -2,11 +2,6 @@
     Encrypted Passwords:
         - Experiment with an actual encrypted system
         
-    Several of the settings that I have, if they don't retrieve a variable, are
-        supposed to default to something. But I am manually setting this default at least
-        twice: Once in smak stopper, and at least one more time in settings dialog. The 
-        solution is have both of these refer to a variable in the settings utility
-        class. 
         
     Add color option for lockscreen
     
@@ -17,14 +12,6 @@
         - custom message not showing up again (might have something to do with positions)
         - custom position will fail, at least if using text.
         
-        - There is a conflict between the words "show_message", which used to be 
-        "show_password" and the new "show_password". I think I need to call show_message
-        somethign completely random for a while while I figure out which is which. 
-            - Ands then show_message should be _show_message or just deleted completely. 
-            - Then in smak stopper, we don't even need to check for any of these, we just
-            load whatever the message is (whether it's nothing which is '' or default
-            password version, or a custom message.)
-            
     EXE
         - Make this into an optional exe. 
     
@@ -64,7 +51,7 @@ class SmakStopper:
             "bottom left", "bottom center", "bottom right"
         ]
 
-    def __init__(self, master, on_close_callback=None, show_message=False, custom_msg=None, position=None, size=12, alpha=0.1):
+    def __init__(self, master, on_close_callback=None, show_password=False, custom_msg=None, position=None, size=12, alpha=0.1):
         # pt('init')
         self.master = master
         self.on_close_callback = on_close_callback
@@ -74,7 +61,7 @@ class SmakStopper:
         self.typed_keys = []
         self.password = "quit"
         self.show_custom_msg = True
-        self.show_message = show_message
+        self.show_password = show_password
         self.custom_msg = custom_msg
         self.position = position
 
@@ -88,18 +75,17 @@ class SmakStopper:
 
     def load_settings(self):
         settings = SettingsUtility.load_settings()
-        self.auto_lock_enabled = settings.get('auto_lock_enabled', False)
-        self.auto_lock_time = settings.get('auto_lock_time', SettingsUtility.auto_lock_time)
-        self.message_type = settings.get('message_type', 'custom')
-        self.show_nothing = settings.get('show_nothing', False)
-        self.show_password = settings.get('show_password', True)
-        self.show_message = settings.get('show_message', False)
-        self.show_custom_msg = settings.get('show_custom_msg', True)
-        self.custom_msg = settings.get('custom_msg', None)
-        self.position = settings.get('position', None)
-        self.size = settings.get('size', 12)
-        self.alpha = settings.get('alpha', 0.1)
-        self.password = list(settings.get('password', self.password))
+        self.auto_lock_enabled = settings['auto_lock_enabled']
+        self.auto_lock_time = settings['auto_lock_time']
+        self.message_type = settings['message_type']
+        self.show_nothing = settings['show_nothing']
+        self.show_password = settings['show_password']
+        self.show_custom_msg = settings['show_custom_msg']
+        self.custom_msg = settings['custom_msg']
+        self.position = settings['position']
+        self.size = settings['size']
+        self.alpha = settings['alpha']
+        self.password = list(settings['password'])
 
     def update_settings(self, new_settings):
         self.auto_lock_enabled = new_settings['auto_lock_enabled']
@@ -107,7 +93,6 @@ class SmakStopper:
         self.message_type = new_settings['message_type']
         self.show_nothing = new_settings['show_nothing']
         self.show_password = new_settings['show_password']
-        self.show_message = new_settings['show_message']
         self.show_custom_msg = new_settings['show_custom_msg']
         self.custom_msg = new_settings['custom_msg']
         self.position = new_settings['position']
@@ -140,7 +125,7 @@ class SmakStopper:
         ##############################################################
         
         self.smak_window.attributes('-alpha', self.alpha)
-        if self.show_message:
+        if self.show_password:
             self.display_message()
 
     def display_message(self):
@@ -262,14 +247,13 @@ class SettingsUtility:
     auto_lock_time = 180
     
     @staticmethod
-    def load_settings():
-        settings_path = SettingsUtility.get_path()
-        default_settings = {
+    def default_settings():
+        return {
             'auto_lock_enabled': False,
             'auto_lock_time': SettingsUtility.auto_lock_time,
             'message_type': 'custom',
             'show_nothing': False,
-            'show_message': False,
+            'show_password': False,
             'show_custom_msg': True,
             'custom_msg': 'Display a Password Hint, or display password, or show nothing',
             'position': None,
@@ -277,14 +261,18 @@ class SettingsUtility:
             'alpha': 0.1,
             'password': 'quit'
         }
+
+    @staticmethod
+    def load_settings():
+        settings_path = SettingsUtility.get_path()
         try:
             with open(settings_path, 'r') as file:
                 settings = json.load(file)
                 # Ensure all default settings are present
-                for key, value in default_settings.items():
+                for key, value in SettingsUtility.default_settings().items():
                     settings.setdefault(key, value)
         except FileNotFoundError:
-            settings = default_settings
+            settings = SettingsUtility.default_settings()
 
         return settings
 
@@ -547,25 +535,10 @@ class SettingsDialog:
 
     def load_settings(self):
         self.settings = SettingsUtility.load_settings()
-        if self.settings is None:
-            self.settings = {
-                'message_type': 'custom',
-                'show_nothing': False,
-                'show_message': False,
-                'show_custom_msg': True,
-                'custom_msg': 'Display a Password Hint, or display password, or show nothing',
-                'position': None,
-                'size': 12,
-                'alpha': 0.1,
-                'password': 'quit',
-                'enable_encryption': False,
-                'auto_lock_enabled': False,
-                'auto_lock_time': SettingsUtility.auto_lock_time
-            }
-            
+        
         if self.settings.get('show_nothing', False):
             self.display_option_var.set(1)
-        elif self.settings.get('show_message', False):
+        elif self.settings.get('show_password', False):
             self.display_option_var.set(2)
         elif self.settings.get('show_custom_msg', False):  # Default to True if none are set
             self.display_option_var.set(3)
@@ -622,7 +595,7 @@ class SettingsDialog:
             'auto_lock_time': auto_lock_time,
             'message_type': message_type,
             'show_nothing': self.display_option_var.get() == 1,
-            'show_message': self.display_option_var.get() == 2,
+            'show_password': self.display_option_var.get() == 2,
             'show_custom_msg': self.display_option_var.get() == 3,
             'custom_msg': self.custom_msg_entry.get('1.0', 'end-1c'),
             'position': position,
