@@ -53,7 +53,7 @@ from tkinter import font
 from pynput import keyboard, mouse
 from pynput.keyboard import Key, Controller
 
-from pystray import MenuItem as item, Icon, Menu
+from pystray import MenuItem as item, Icon, Menu, MenuItem
 from PIL import Image
 
 class SmakStopper:
@@ -711,10 +711,32 @@ class WindowManager:
             self.root.after(0, self.toggle_window1)
 
 
+class Win32PystrayIcon(Icon):
+    WM_LBUTTONDBLCLK = 0x0203
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if 'on_double_click' in kwargs:
+            self.on_double_click = kwargs['on_double_click']
+
+    def _on_notify(self, wparam, lparam):
+        super()._on_notify(wparam, lparam)
+        if lparam == self.WM_LBUTTONDBLCLK:
+            self.on_double_click(self, None)
+
+
+
 def setup_tray_icon(window_manager):
+    if sys.platform == 'win32':
+        Icon = Win32PystrayIcon
+    
     def quit_app(icon):
         icon.stop()
         sys.exit()
+
+    def on_double_click(icon, item):
+        window_manager.toggle_window1()
 
     # Default icon
     icon_image_default = Image.new('RGB', (64, 64), color='red')
@@ -722,13 +744,16 @@ def setup_tray_icon(window_manager):
     icon_image_locked = Image.new('RGB', (64, 64), color='green')
 
     menu = (
-        item('__SMAK STOPPER__', lambda: None),
+        MenuItem('__SMAK STOPPER__', lambda: None),
         Menu.SEPARATOR,
-        item('Lock the Screen', lambda: window_manager.toggle_window1()),
-        item('Settings', lambda: window_manager.toggle_window2()),
-        item('Quit', lambda: quit_app(icon))
+        MenuItem('Lock the Screen', lambda: window_manager.toggle_window1()),
+        MenuItem('Settings', lambda: window_manager.toggle_window2()),
+        MenuItem('Quit', lambda: quit_app(icon))
     )
-    icon = Icon("Test Tray", icon_image_default, "Test Tray", menu)
+    icon = Icon(
+        "Test Tray", icon_image_default, "Test Tray", menu,
+        on_double_click=on_double_click if sys.platform == "win32" else None
+    )
     window_manager.tray_icon = icon  # Store the icon in the WindowManager
     window_manager.icon_image_default = icon_image_default
     window_manager.icon_image_locked = icon_image_locked
