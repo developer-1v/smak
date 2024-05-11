@@ -11,9 +11,7 @@
         - custom message not showing up again (might have something to do with positions)
         - custom position will fail, at least if using text.
         - quit button not properly quitting
-        - The default option is always set to custom message radio button, even after the 
-        settings loads. They should be dynamic and switch to whatever the settings had. 
-
+        
         - Several of the settings that I have, if they don't retrieve a variable, are
         supposed to default to something. But I am manually setting this default at least
         twice: Once in smak stopper, and at least one more time in settings dialog. The 
@@ -26,8 +24,7 @@
             - Then in smak stopper, we don't even need to check for any of these, we just
             load whatever the message is (whether it's nothing which is '' or default
             password version, or a custom message.)
-
-    
+            
     EXE
         - Make this into an optional exe. 
     
@@ -647,7 +644,12 @@ class WindowManager:
         self.window2 = None
         self.auto_lock_timer = None
         self.inactivity_delay = 50
-        
+        self.tray_icon = None  # Reference to the tray icon
+        self.icon_image_default = None
+        self.icon_image_locked = None
+        self.load_auto_lock_settings()
+        self.start_listeners()
+    
         self.load_auto_lock_settings()
 
         self.start_listeners()
@@ -682,10 +684,21 @@ class WindowManager:
         if not self.window1 or not self.window1.smak_window.winfo_exists():
             self.window1 = SmakStopper(master=self.root)
             self.window1.run()
+            if self.tray_icon:
+                self.tray_icon.icon = self.icon_image_locked
+                self.tray_icon.visible = False  # Hide the icon
+                self.tray_icon.visible = True   # Show the icon to refresh
         else:
+            pt()
             self.window1.close()
             self.window1 = None
-
+            if self.tray_icon:
+                self.tray_icon.icon = self.icon_image_default
+                self.tray_icon.visible = False  # Hide the icon
+                self.tray_icon.visible = True   # Show the icon to refresh
+                pt()
+            
+            
     def toggle_window2(self):
         if not self.window2 or not self.window2.settings_window.winfo_exists():
             self.window2 = SettingsDialog(master=self.root)
@@ -697,14 +710,18 @@ class WindowManager:
         """ Trigger auto-lock by opening SmakStopper Window only if it's not already open."""
         if not self.window1 or not self.window1.smak_window.winfo_exists():
             self.root.after(0, self.toggle_window1)
-        
+
+
 def setup_tray_icon(window_manager):
     def quit_app(icon):
         icon.stop()
         sys.exit()
-        
-    
-    icon_image = Image.new('RGB', (64, 64), color = 'red')
+
+    # Default icon
+    icon_image_default = Image.new('RGB', (64, 64), color='red')
+    # Icon when window1 is active
+    icon_image_locked = Image.new('RGB', (64, 64), color='green')
+
     menu = (
         item('__SMAK STOPPER__', lambda: None),
         Menu.SEPARATOR,
@@ -712,7 +729,10 @@ def setup_tray_icon(window_manager):
         item('Settings', lambda: window_manager.toggle_window2()),
         item('Quit', lambda: quit_app(icon))
     )
-    icon = Icon("Test Tray", icon_image, "Test Tray", menu)
+    icon = Icon("Test Tray", icon_image_default, "Test Tray", menu)
+    window_manager.tray_icon = icon  # Store the icon in the WindowManager
+    window_manager.icon_image_default = icon_image_default
+    window_manager.icon_image_locked = icon_image_locked
     icon.run()
 
 if __name__ == "__main__":
