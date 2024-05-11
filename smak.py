@@ -36,9 +36,7 @@
     Real Icon:
         - Maybe a babies hand with a rattle, smashing the keyboard. 
         - This is from a larger image where maybe a cat's paw is also on the keyboard?
-        
-    Swap Icons on lock
-    
+            
     Readme:
         - Make it a humorous readme. Maybe ask for help with this? 
     
@@ -65,9 +63,11 @@ class SmakStopper:
             "bottom left", "bottom center", "bottom right"
         ]
 
-    def __init__(self, master, show_message=False, custom_msg=None, position=None, size=12, alpha=0.1):
+    def __init__(self, master, on_close_callback=None, show_message=False, custom_msg=None, position=None, size=12, alpha=0.1):
         # pt('init')
         self.master = master
+        self.on_close_callback = on_close_callback
+        
         self.smak_window = tk.Toplevel(self.master)
         
         self.typed_keys = []
@@ -231,7 +231,8 @@ class SmakStopper:
             self.listener = None
         if self.smak_window and hasattr(self.smak_window, 'tk') and self.smak_window.winfo_exists():
             self.smak_window.destroy()
-
+        if self.on_close_callback:
+            self.on_close_callback() 
 
 class PasswordManager:
     def __init__(self, settings_path):
@@ -672,7 +673,7 @@ class WindowManager:
                 self.auto_lock_timer.cancel()
             self.auto_lock_timer = threading.Timer(self.inactivity_delay, self.auto_lock)
             self.auto_lock_timer.start()
-            
+
     def reset_auto_lock_timer(self, *args):
         """ Reset the auto-lock timer whenever there is keyboard or mouse activity. """
         if self.auto_lock_timer is not None:
@@ -682,23 +683,21 @@ class WindowManager:
 
     def toggle_window1(self):
         if not self.window1 or not self.window1.smak_window.winfo_exists():
-            self.window1 = SmakStopper(master=self.root)
+            self.window1 = SmakStopper(master=self.root, on_close_callback=self.on_window1_close)
             self.window1.run()
             if self.tray_icon:
-                self.tray_icon.icon = self.icon_image_locked
-                self.tray_icon.visible = False  # Hide the icon
-                self.tray_icon.visible = True   # Show the icon to refresh
+                self.tray_icon.icon = self.icon_image_locked  # Change icon to active
         else:
-            pt()
             self.window1.close()
             self.window1 = None
             if self.tray_icon:
-                self.tray_icon.icon = self.icon_image_default
-                self.tray_icon.visible = False  # Hide the icon
-                self.tray_icon.visible = True   # Show the icon to refresh
-                pt()
-            
-            
+                self.tray_icon.icon = self.icon_image_default  # Change icon to default
+
+    def on_window1_close(self):
+        self.window1 = None
+        if self.tray_icon:
+            self.tray_icon.icon = self.icon_image_default  # Change icon to default when window1 is closed
+
     def toggle_window2(self):
         if not self.window2 or not self.window2.settings_window.winfo_exists():
             self.window2 = SettingsDialog(master=self.root)
