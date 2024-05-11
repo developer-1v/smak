@@ -3,9 +3,15 @@
         - Experiment with an actual encrypted system
         
 
-    Double Click to launch:
-        - like toddler keys
+    Add color option for lockscreen
     
+    Add var to save last location of the settings window. 
+    - if this var is set
+    hitting the settings window a second time shouldn't toggle it off, but bring it back up
+    
+    have checkmarks or click-holds that let you see the password your typing in. 
+    
+    put minimal time for autolock to something like 6 seconds (0.1 minutes)
     
     Bugs:
         - custom message not showing up again (might have something to do with positions)
@@ -32,6 +38,7 @@
         - Figure this out:
         - CMD & therefore maybe the startup command:
             python smak.py --systray
+        - Make this optional but selected by defauult
     
     Real Icon:
         - Maybe a babies hand with a rattle, smashing the keyboard. 
@@ -113,6 +120,7 @@ class SmakStopper:
         self.size = new_settings['size']
         self.alpha = new_settings['alpha']
         self.password = new_settings['password']
+        
         
         self.setup_window()
 
@@ -282,7 +290,6 @@ class SettingsUtility:
                     settings.setdefault(key, value)
         except FileNotFoundError:
             settings = default_settings
-            
 
         return settings
 
@@ -296,18 +303,20 @@ class SettingsUtility:
 
 
 class SettingsDialog:
-    def __init__(self, master, system_tray_app=None):
+    def __init__(self, master, manager=None, system_tray_app=None):
         self.master = master
+        self.manager = manager
         self.system_tray_app = system_tray_app
         
         self.password_manager = PasswordManager(SettingsUtility.get_path())
 
         self.settings_window = tk.Toplevel(self.master)
         self.settings_window.title("SMAK Settings")
-
+        self.label_section_font_size = 12
+        self.settings_window.resizable(False, False)
+        
         self.display_option_var = tk.IntVar(value=3)  # Default to 'Show custom message'
 
-        self.title_font_size = 12
         
         ## Set the window as modal and focus
         self.settings_window.transient(None)
@@ -358,17 +367,17 @@ class SettingsDialog:
                 self.custom_msg_entry.config(state='disabled', bg='light grey')
 
     def setup_window_contents(self):
+        self.setup_auto_lock_section()
         self.setup_window_appearance()
         self.setup_message_display_options()
         self.setup_password_section()
-        self.setup_auto_lock_section()
         self.setup_save_button()
         self.update_radio_display_option()
         self.settings_window.update()
         self.center_window()
 
     def setup_auto_lock_section(self):
-        auto_lock_label = tk.Label(self.settings_window, text="Auto Lock Settings", font=("Helvetica", self.title_font_size, "bold"))
+        auto_lock_label = tk.Label(self.settings_window, text="Auto Lock Settings", font=("Helvetica", self.label_section_font_size, "bold"))
         auto_lock_label.pack(pady=(10, 5))
 
         self.auto_lock_var = tk.BooleanVar(value=self.settings.get('auto_lock_enabled', False))
@@ -387,8 +396,8 @@ class SettingsDialog:
         #########################################################
         window_section_label = tk.Label(
             self.settings_window, text="Invisible Lockscreen Appearance", 
-            font=("Helvetica", self.title_font_size, "bold"))
-        window_section_label.pack(pady=(10, 5))
+            font=("Helvetica", self.label_section_font_size, "bold"))
+        window_section_label.pack(padx=(10,10), pady=(10, 5))
     
         ###################
         ## Alpha Transparency
@@ -407,7 +416,7 @@ class SettingsDialog:
         #########################################################
         window_section_label = tk.Label(
             self.settings_window, text="Display a Message", 
-            font=("Helvetica", self.title_font_size, "bold"))
+            font=("Helvetica", self.label_section_font_size, "bold"))
         window_section_label.pack(pady=(10, 5))
 
         ###################
@@ -501,7 +510,7 @@ class SettingsDialog:
         password_section_label = tk.Label(
             self.settings_window, 
             text="Password Management", 
-            font=("Helvetica", self.title_font_size, "bold"))
+            font=("Helvetica", self.label_section_font_size, "bold"))
         password_section_label.pack(pady=(10, 5))
 
         ## Current Password
@@ -588,7 +597,7 @@ class SettingsDialog:
             message_type = 'custom'
 
         auto_lock_enabled = self.auto_lock_var.get()
-                
+        
         try:
             auto_lock_time = float(self.auto_lock_time_entry.get())
         except ValueError:
@@ -627,7 +636,17 @@ class SettingsDialog:
         with open(settings_path, 'w') as file:
             json.dump(new_settings, file)
 
-            self.close()
+        ## start/stop listeners for auto_lock
+        if self.manager:
+            self.manager.load_auto_lock_settings()
+            self.manager.reset_auto_lock_timer()
+            
+            if auto_lock_enabled:
+                self.manager.start_listeners()
+            else:
+                self.manager.stop_listeners()
+            
+                self.close()
 
 
 class MainTKLoop:
@@ -643,43 +662,58 @@ class WindowManager:
         self.root = root
         self.window1 = None
         self.window2 = None
-        self.auto_lock_timer = None
+        self.auto_lock_timer_thread = None
         self.inactivity_delay = 50
         self.tray_icon = None  # Reference to the tray icon
         self.icon_image_default = None
         self.icon_image_locked = None
+        
+        self.keyboard_listener = None
+        self.mouse_listener = None
+        self.auto_lock_timer = None
+        
         self.load_auto_lock_settings()
-        self.start_listeners()
-    
-        self.load_auto_lock_settings()
-
-        self.start_listeners()
+        if self.auto_lock_enabled:
+            self.start_listeners()
 
     def start_listeners(self):
-        self.keyboard_listener = keyboard.Listener(on_press=self.reset_auto_lock_timer)
-        self.mouse_listener = mouse.Listener(on_move=self.reset_auto_lock_timer)
-        self.keyboard_listener.start()
-        self.mouse_listener.start()
+        if not self.keyboard_listener:
+            self.keyboard_listener = keyboard.Listener(on_press=self.reset_auto_lock_timer)
+            self.keyboard_listener.start()
+        if not self.mouse_listener:
+            self.mouse_listener = mouse.Listener(on_move=self.reset_auto_lock_timer)
+            self.mouse_listener.start()
+
+    def stop_listeners(self):
+        if self.keyboard_listener:
+            self.keyboard_listener.stop()
+            self.keyboard_listener = None
+        if self.mouse_listener:
+            self.mouse_listener.stop()
+            self.mouse_listener = None
+        if self.auto_lock_timer:
+            self.auto_lock_timer.cancel()
+            self.auto_lock_timer = None
 
     def load_auto_lock_settings(self):
         settings = SettingsUtility.load_settings()
         self.auto_lock_enabled = settings['auto_lock_enabled']
-        # Parse auto_lock_time as float to allow decimal values
         self.inactivity_delay = float(settings['auto_lock_time']) * 60  # Convert minutes to seconds
 
     def reset_auto_lock_timer(self, *args):
+        pt()
         if self.auto_lock_enabled:
-            if self.auto_lock_timer is not None:
+            if self.auto_lock_timer:
                 self.auto_lock_timer.cancel()
             self.auto_lock_timer = threading.Timer(self.inactivity_delay, self.auto_lock)
             self.auto_lock_timer.start()
+        else:
+            self.stop_listeners()
 
-    def reset_auto_lock_timer(self, *args):
-        """ Reset the auto-lock timer whenever there is keyboard or mouse activity. """
-        if self.auto_lock_timer is not None:
-            self.auto_lock_timer.cancel()
-        self.auto_lock_timer = threading.Timer(self.inactivity_delay, self.auto_lock)
-        self.auto_lock_timer.start()
+    def auto_lock(self):
+        """ Trigger auto-lock by opening SmakStopper Window only if it's not already open."""
+        if not self.window1 or not self.window1.smak_window.winfo_exists():
+            self.root.after(0, self.toggle_window1)
 
     def toggle_window1(self):
         if not self.window1 or not self.window1.smak_window.winfo_exists():
@@ -691,7 +725,7 @@ class WindowManager:
             self.window1.close()
             self.window1 = None
             if self.tray_icon:
-                self.tray_icon.icon = self.icon_image_default  # Change icon to default
+                self.tray_icon.icon = self.icon_image_default  # Chcon to default
 
     def on_window1_close(self):
         self.window1 = None
@@ -700,15 +734,13 @@ class WindowManager:
 
     def toggle_window2(self):
         if not self.window2 or not self.window2.settings_window.winfo_exists():
-            self.window2 = SettingsDialog(master=self.root)
+            self.window2 = SettingsDialog(master=self.root, manager=self)
         else:
-            self.window2.close()
-            self.window2 = None
+            self.window2.settings_window.deiconify()  # Restore the window if minimized
+            self.window2.settings_window.lift()       # Bring the window to the top
+            self.window2.settings_window.focus_set()  # Set focus to the window
 
-    def auto_lock(self):
-        """ Trigger auto-lock by opening SmakStopper Window only if it's not already open."""
-        if not self.window1 or not self.window1.smak_window.winfo_exists():
-            self.root.after(0, self.toggle_window1)
+
 
 
 class Win32PystrayIcon(Icon):
@@ -751,7 +783,7 @@ def setup_tray_icon(window_manager):
         MenuItem('Quit', lambda: quit_app(icon))
     )
     icon = Icon(
-        "Test Tray", icon_image_default, "Test Tray", menu,
+        "SMAK Stopper", icon_image_default, "SMAK Stopper", menu,
         on_double_click=on_double_click if sys.platform == "win32" else None
     )
     window_manager.tray_icon = icon  # Store the icon in the WindowManager
