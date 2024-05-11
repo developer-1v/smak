@@ -154,6 +154,8 @@ class SmakStopper:
         return x, y
 
     def create_label(self, message, position):
+        if isinstance(position, str):
+            position = self.calculate_position(position)
         x, y = position
         label = tk.Label(
             self.smak_window, text=message,
