@@ -80,6 +80,7 @@ class SmakStopper:
         self.position = settings['position']
         self.size = settings['size']
         self.alpha = settings['alpha']
+        self.background_color = settings['background_color']
         self.password = list(settings['password'])
 
     def update_settings(self, new_settings):
@@ -93,6 +94,7 @@ class SmakStopper:
         self.position = new_settings['position']
         self.size = new_settings['size']
         self.alpha = new_settings['alpha']
+        self.background_color = new_settings['background_color']
         self.password = new_settings['password']
         
         
@@ -105,7 +107,7 @@ class SmakStopper:
         self.smak_window.title('SMAK Stopper')
         self.smak_window.protocol("WM_DELETE_WINDOW", self.close)
         
-        self.smak_window.configure(bg='black')
+        self.smak_window.configure(bg=self.background_color)
         
         ################################
         ##  TODO: I don't remember what these override's are for... and why wasn't fullscreen working
@@ -158,7 +160,6 @@ class SmakStopper:
             fg='white', bg='black', font=self.custom_font
         )
         label.place(relx=x, rely=y, anchor='center')
-            
 
     def start_keyboard_listener(self):
         ## Suppress keys
@@ -196,7 +197,7 @@ class SmakStopper:
     def run(self):
         self.start_keyboard_listener()
         self.setup_window()
-    
+
     def close(self):
         if self.listener:
             self.listener.stop()
@@ -244,6 +245,7 @@ class SettingsUtility:
             'position': None,
             'size': 12,
             'alpha': 0.1,
+            'background_color': 'black',
             'password': 'quit'
         }
 
@@ -298,16 +300,14 @@ class SettingsDialog:
         
         ## Set DPI awareness (No longer necessary, but will be more seamless/integrated)
         ctypes.windll.shcore.SetProcessDpiAwareness(1)
-    
+
     def close(self):
         ##  release the grab and destroy the window
         self.settings_window.grab_release()
         self.settings_window.destroy()
         if self.system_tray_app:
             self.system_tray_app.settings_win_inst = None
-    
 
-    
     def get_screen_size(self):
         
         hdc = ctypes.windll.user32.GetDC(None)
@@ -318,7 +318,7 @@ class SettingsDialog:
         ctypes.windll.user32.ReleaseDC(None, hdc)
         
         return width, height
-    
+
     def center_window(self):
         # pt("center_window")
         w, h = self.get_screen_size()
@@ -358,7 +358,7 @@ class SettingsDialog:
         self.auto_lock_time_entry = tk.Entry(self.settings_window)
         self.auto_lock_time_entry.insert(0, str(self.settings.get('auto_lock_time', 50)))
         self.auto_lock_time_entry.pack()
-        
+
     def setup_window_appearance(self):
         #########################################################
         ## Invisible Window Appearance
@@ -378,6 +378,21 @@ class SettingsDialog:
         self.alpha_entry = tk.Entry(self.settings_window)
         self.alpha_entry.insert(0, str(self.settings['alpha']))
         self.alpha_entry.pack()
+
+        ###################
+        ## Background Color
+        ###################
+        # List of common colors supported by Tkinter
+        self.supported_colors = ['white', 'black', 'red', 'green', 'blue', 'cyan', 'yellow', 'magenta']
+        
+        self.bg_color_label = tk.Label(self.settings_window, text="Background Color:")
+        self.bg_color_label.pack()
+        
+        self.bg_color_var = tk.StringVar()
+        self.bg_color_var.set(self.settings['background_color'])  # set the default value
+        
+        self.bg_color_menu = tk.OptionMenu(self.settings_window, self.bg_color_var, *self.supported_colors)
+        self.bg_color_menu.pack()
 
     def setup_message_display_options(self):
         #########################################################
@@ -522,7 +537,7 @@ class SettingsDialog:
             width=16, height=3
             )
         self.save_button.pack(pady=(25, 20))
-    
+
     def change_password(self, new_password, enable_encryption=False):
         if enable_encryption:
             new_password = self.password_manager.encrypt_password(new_password)
@@ -587,6 +602,7 @@ class SettingsDialog:
         selected_positions = [pos for pos, var in self.position_checkboxes.items() if var.get()]
         # new_settings['selected_positions'] = selected_positions
         
+        background_color = self.bg_color_var.get()
         
         new_settings = {
             'auto_lock_enabled': auto_lock_enabled,
@@ -599,6 +615,7 @@ class SettingsDialog:
             'selected_positions': selected_positions,
             'size': int(self.size_entry.get()),
             'alpha': float(self.alpha_entry.get()),
+            'background_color': background_color,
             'password': password,
             'enable_encryption': enable_encryption,
         }
