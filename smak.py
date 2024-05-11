@@ -16,7 +16,6 @@
     Bugs:
         - custom message not showing up again (might have something to do with positions)
         - custom position will fail, at least if using text.
-        - quit button not properly quitting
         
         - There is a conflict between the words "show_message", which used to be 
         "show_password" and the new "show_password". I think I need to call show_message
@@ -49,7 +48,7 @@
     '''
 from print_tricks import pt
 
-import json, ctypes, threading, sys, os
+import json, ctypes, threading, sys, os, time
 import tkinter as tk
 from tkinter import font, messagebox
 from pynput import keyboard, mouse
@@ -763,10 +762,18 @@ class Win32PystrayIcon(Icon):
 def setup_tray_icon(window_manager):
     if sys.platform == 'win32':
         Icon = Win32PystrayIcon
-    
-    def quit_app(icon):
-        icon.stop()
-        sys.exit()
+        
+    def quit_app(icon, window_manager):
+        try:
+            window_manager.stop_listeners()
+            if window_manager.auto_lock_timer:
+                window_manager.auto_lock_timer.cancel()
+            
+            icon.stop()
+            sys.exit()
+        except SystemExit:
+            icon.stop()
+            print("Application exited cleanly.")
 
     def on_double_click(icon, item):
         window_manager.toggle_window1()
@@ -781,7 +788,7 @@ def setup_tray_icon(window_manager):
         Menu.SEPARATOR,
         MenuItem('Lock the Screen', lambda: window_manager.toggle_window1()),
         MenuItem('Settings', lambda: window_manager.toggle_window2()),
-        MenuItem('Quit', lambda: quit_app(icon))
+        MenuItem('Quit', lambda: quit_app(icon, window_manager))
     )
     icon = Icon(
         "SMAK Stopper", icon_image_default, "SMAK Stopper", menu,
@@ -804,11 +811,9 @@ if __name__ == "__main__":
             args=(manager,),
             daemon=True)
         icon_thread.start()
-    else:
-        app = SmakStopper(root, show_message=True)
-        app.run()
-        
+    
     main_loop.run()
+
 
 
 
