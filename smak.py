@@ -2,27 +2,22 @@
     Encrypted Passwords:
         - Experiment with an actual encrypted system
         
-
+    Several of the settings that I have, if they don't retrieve a variable, are
+        supposed to default to something. But I am manually setting this default at least
+        twice: Once in smak stopper, and at least one more time in settings dialog. The 
+        solution is have both of these refer to a variable in the settings utility
+        class. 
+        
     Add color option for lockscreen
-    
-    Add var to save last location of the settings window. 
-    - if this var is set
-    hitting the settings window a second time shouldn't toggle it off, but bring it back up
     
     have checkmarks or click-holds that let you see the password your typing in. 
     
-    put minimal time for autolock to something like 6 seconds (0.1 minutes)
     
     Bugs:
         - custom message not showing up again (might have something to do with positions)
         - custom position will fail, at least if using text.
         - quit button not properly quitting
         
-        - Several of the settings that I have, if they don't retrieve a variable, are
-        supposed to default to something. But I am manually setting this default at least
-        twice: Once in smak stopper, and at least one more time in settings dialog. The 
-        solution is have both of these refer to a variable in the settings utility
-        class. 
         - There is a conflict between the words "show_message", which used to be 
         "show_password" and the new "show_password". I think I need to call show_message
         somethign completely random for a while while I figure out which is which. 
@@ -56,7 +51,7 @@ from print_tricks import pt
 
 import json, ctypes, threading, sys, os
 import tkinter as tk
-from tkinter import font
+from tkinter import font, messagebox
 from pynput import keyboard, mouse
 from pynput.keyboard import Key, Controller
 
@@ -95,7 +90,7 @@ class SmakStopper:
     def load_settings(self):
         settings = SettingsUtility.load_settings()
         self.auto_lock_enabled = settings.get('auto_lock_enabled', False)
-        self.auto_lock_time = settings.get('auto_lock_time', 3600)
+        self.auto_lock_time = settings.get('auto_lock_time', SettingsUtility.auto_lock_time)
         self.message_type = settings.get('message_type', 'custom')
         self.show_nothing = settings.get('show_nothing', False)
         self.show_password = settings.get('show_password', True)
@@ -265,13 +260,14 @@ class PasswordManager:
 
 
 class SettingsUtility:
+    auto_lock_time = 180
     
     @staticmethod
     def load_settings():
         settings_path = SettingsUtility.get_path()
         default_settings = {
             'auto_lock_enabled': False,
-            'auto_lock_time': 3600,
+            'auto_lock_time': SettingsUtility.auto_lock_time,
             'message_type': 'custom',
             'show_nothing': False,
             'show_message': False,
@@ -313,16 +309,17 @@ class SettingsDialog:
         self.settings_window = tk.Toplevel(self.master)
         self.settings_window.title("SMAK Settings")
         self.label_section_font_size = 12
-        self.settings_window.resizable(False, False)
         
-        self.display_option_var = tk.IntVar(value=3)  # Default to 'Show custom message'
+        ## This makes the window a tool window which removes the maximize and minimize buttons
+        self.settings_window.attributes('-toolwindow', True)
+        self.display_option_var = tk.IntVar(value=3)  ## Default to 'Show custom message'
 
         
         ## Set the window as modal and focus
         self.settings_window.transient(None)
         self.settings_window.grab_set()  ## Modal
         self.settings_window.focus_set()
-        self.settings_window.attributes('-topmost', True)
+        # self.settings_window.attributes('-topmost', True)
         
         self.load_settings()
         self.setup_window_contents()
@@ -564,7 +561,7 @@ class SettingsDialog:
                 'password': 'quit',
                 'enable_encryption': False,
                 'auto_lock_enabled': False,
-                'auto_lock_time': 3600
+                'auto_lock_time': SettingsUtility.auto_lock_time
             }
             
         if self.settings.get('show_nothing', False):
@@ -586,9 +583,9 @@ class SettingsDialog:
             if self.password_manager.validate_password(current_password):
                 password = self.change_password(new_password, enable_encryption)
             else:
-                tk.messagebox.showerror("Error", "Current password is incorrect.")
+                messagebox.showerror("Error", "Current password is incorrect.")
         elif new_password:
-            tk.messagebox.showerror("Error", "New passwords do not match.")
+            messagebox.showerror("Error", "New passwords do not match.")
 
         message_type = 'none'  # Default to 'none'
         if self.display_option_var.get() == 2:
@@ -600,6 +597,10 @@ class SettingsDialog:
         
         try:
             auto_lock_time = float(self.auto_lock_time_entry.get())
+            # Enforce a minimum auto-lock time of 0.1 minutes (6 seconds)
+            if auto_lock_time < 0.1:
+                auto_lock_time = 0.1
+                tk.messagebox.showinfo("Notice", "Auto-lock time set to minimum of 0.1 minutes (6 seconds) to prevent accidental continous locking.")
         except ValueError:
             tk.messagebox.showerror("Error", "Invalid auto lock time. Please enter a valid number.")
             return
@@ -663,7 +664,7 @@ class WindowManager:
         self.window1 = None
         self.window2 = None
         self.auto_lock_timer_thread = None
-        self.inactivity_delay = 50
+        self.auto_lock_time = SettingsUtility.auto_lock_time
         self.tray_icon = None  # Reference to the tray icon
         self.icon_image_default = None
         self.icon_image_locked = None
@@ -698,14 +699,14 @@ class WindowManager:
     def load_auto_lock_settings(self):
         settings = SettingsUtility.load_settings()
         self.auto_lock_enabled = settings['auto_lock_enabled']
-        self.inactivity_delay = float(settings['auto_lock_time']) * 60  # Convert minutes to seconds
+        self.auto_lock_time = float(settings['auto_lock_time']) * 60  # Convert minutes to seconds
 
     def reset_auto_lock_timer(self, *args):
         pt()
         if self.auto_lock_enabled:
             if self.auto_lock_timer:
                 self.auto_lock_timer.cancel()
-            self.auto_lock_timer = threading.Timer(self.inactivity_delay, self.auto_lock)
+            self.auto_lock_timer = threading.Timer(self.auto_lock_time, self.auto_lock)
             self.auto_lock_timer.start()
         else:
             self.stop_listeners()
@@ -720,17 +721,17 @@ class WindowManager:
             self.window1 = SmakStopper(master=self.root, on_close_callback=self.on_window1_close)
             self.window1.run()
             if self.tray_icon:
-                self.tray_icon.icon = self.icon_image_locked  # Change icon to active
+                self.tray_icon.icon = self.icon_image_locked  ## Change icon to active
         else:
             self.window1.close()
             self.window1 = None
             if self.tray_icon:
-                self.tray_icon.icon = self.icon_image_default  # Chcon to default
+                self.tray_icon.icon = self.icon_image_default  ## Change icon to default
 
     def on_window1_close(self):
         self.window1 = None
         if self.tray_icon:
-            self.tray_icon.icon = self.icon_image_default  # Change icon to default when window1 is closed
+            self.tray_icon.icon = self.icon_image_default  ## Change icon to default when window1 is closed
 
     def toggle_window2(self):
         if not self.window2 or not self.window2.settings_window.winfo_exists():
