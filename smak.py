@@ -9,7 +9,6 @@
     
     
     Bugs:
-        - custom message not showing up again (might have something to do with positions)
         - custom position will fail, at least if using text.
         
     EXE
@@ -67,7 +66,6 @@ class SmakStopper:
 
         self.size = size
         self.alpha = alpha
-        self.labels = []
         self.listener = None
         
         
@@ -77,7 +75,7 @@ class SmakStopper:
         settings = SettingsUtility.load_settings()
         self.auto_lock_enabled = settings['auto_lock_enabled']
         self.auto_lock_time = settings['auto_lock_time']
-        self.message_type = settings['message_type']
+        message_type = settings['message_type']
         self.show_nothing = settings['show_nothing']
         self.show_password = settings['show_password']
         self.show_custom_msg = settings['show_custom_msg']
@@ -90,7 +88,7 @@ class SmakStopper:
     def update_settings(self, new_settings):
         self.auto_lock_enabled = new_settings['auto_lock_enabled']
         self.auto_lock_time = new_settings['auto_lock_time']
-        self.message_type = new_settings['message_type']
+        message_type = new_settings['message_type']
         self.show_nothing = new_settings['show_nothing']
         self.show_password = new_settings['show_password']
         self.show_custom_msg = new_settings['show_custom_msg']
@@ -125,55 +123,44 @@ class SmakStopper:
         ##############################################################
         
         self.smak_window.attributes('-alpha', self.alpha)
-        if self.show_password:
+        
+        if self.show_password or self.show_custom_msg:
             self.display_message()
 
     def display_message(self):
-        # if not self.smak_window:
-        #     return
-        
-        
         self.custom_font = font.Font(family="Helvetica", size=self.size, weight="bold", underline=1)
         
-        if self.message_type == 'password':
+        # Determine the message to display based on settings
+        message = ''
+        if self.show_password:
             password = ''.join(self.password)
-            self.custom_msg = f'Type in "{password}" (without quotes) to unlock the screen'
-        elif self.message_type == 'custom':
-            self.custom_msg = self.custom_msg
-        else:
-            self.custom_msg = ''
-        
-        if self.position:
-            label = tk.Label(
-                self.smak_window, text=self.custom_msg,
-                fg='white', bg='black', font=self.custom_font
-            )
-            x, y = self.position
-            label.place(relx=x, rely=y, anchor='center')
-            self.labels.append(label)
-        else:
-            for position in self.positions:
-                vertical, horizontal = position.split()
-                label = tk.Label(
-                    self.smak_window, text=self.custom_msg,
-                    fg='white', bg='black', font=self.custom_font
-                )
-                if vertical == 'top':
-                    y = 0.1
-                elif vertical == 'center':
-                    y = 0.5
-                else:  ## bottom
-                    y = 0.9
-                
-                if horizontal == 'left':
-                    x = 0.1
-                elif horizontal == 'center':
-                    x = 0.5
-                else:  ## right
-                    x = 0.9
-                
-                label.place(relx=x, rely=y, anchor='center')
-                self.labels.append(label)
+            message = f'Type in "{password}" (without quotes) to unlock the screen'
+        elif self.show_custom_msg:
+            message = self.custom_msg  # Use the custom message set in settings
+
+        # Display the message on the lock screen
+        if message:
+            if self.position:
+                self.create_label(message, self.position)
+            else:
+                for position in self.positions:
+                    x, y = self.calculate_position(position)
+                    self.create_label(message, (x, y))
+
+    def calculate_position(self, position):
+        vertical, horizontal = position.split()
+        y = 0.1 if vertical == 'top' else 0.5 if vertical == 'center' else 0.9
+        x = 0.1 if horizontal == 'left' else 0.5 if horizontal == 'center' else 0.9
+        return x, y
+
+    def create_label(self, message, position):
+        x, y = position
+        label = tk.Label(
+            self.smak_window, text=message,
+            fg='white', bg='black', font=self.custom_font
+        )
+        label.place(relx=x, rely=y, anchor='center')
+            
 
     def start_keyboard_listener(self):
         ## Suppress keys
