@@ -1,10 +1,7 @@
 '''TODO
     Encrypted Passwords:
         - Experiment with an actual encrypted system
-        
-        
-    Add color option for lockscreen
-    
+            
     have checkmarks or click-holds that let you see the password your typing in. 
     
     EXE
@@ -101,8 +98,7 @@ class SmakStopper:
         self.setup_window()
 
     def setup_window(self):
-        # if not self.smak_window:
-        #     return
+
         
         self.smak_window.title('SMAK Stopper')
         self.smak_window.protocol("WM_DELETE_WINDOW", self.close)
@@ -129,7 +125,6 @@ class SmakStopper:
     def display_message(self):
         self.custom_font = font.Font(family="Helvetica", size=self.size, weight="bold", underline=1)
         
-        # Determine the message to display based on settings
         message = ''
         if self.show_password:
             password = ''.join(self.password)
@@ -137,7 +132,7 @@ class SmakStopper:
         elif self.show_custom_msg:
             message = self.custom_msg  # Use the custom message set in settings
 
-        selected_positions = self.settings.get('selected_positions', self.positions)  # Default to all positions if none selected
+        selected_positions = self.settings.get('selected_positions', self.positions)
         if self.position:
             self.create_label(message, self.position)
         else:
@@ -255,7 +250,6 @@ class SettingsUtility:
         try:
             with open(settings_path, 'r') as file:
                 settings = json.load(file)
-                # Ensure all default settings are present
                 for key, value in SettingsUtility.default_settings().items():
                     settings.setdefault(key, value)
         except FileNotFoundError:
@@ -293,7 +287,6 @@ class SettingsDialog:
         self.settings_window.transient(None)
         self.settings_window.grab_set()  ## Modal
         self.settings_window.focus_set()
-        # self.settings_window.attributes('-topmost', True)
         
         self.load_settings()
         self.setup_window_contents()
@@ -320,7 +313,6 @@ class SettingsDialog:
         return width, height
 
     def center_window(self):
-        # pt("center_window")
         w, h = self.get_screen_size()
         size = tuple(int(_) for _ in self.settings_window.geometry().split('+')[0].split('x'))
         x = (w // 2) - (size[0] // 2)
@@ -382,14 +374,13 @@ class SettingsDialog:
         ###################
         ## Background Color
         ###################
-        # List of common colors supported by Tkinter
         self.supported_colors = ['white', 'black', 'red', 'green', 'blue', 'cyan', 'yellow', 'magenta']
         
         self.bg_color_label = tk.Label(self.settings_window, text="Background Color:")
         self.bg_color_label.pack()
         
         self.bg_color_var = tk.StringVar()
-        self.bg_color_var.set(self.settings['background_color'])  # set the default value
+        self.bg_color_var.set(self.settings['background_color'])
         
         self.bg_color_menu = tk.OptionMenu(self.settings_window, self.bg_color_var, *self.supported_colors)
         self.bg_color_menu.pack()
@@ -457,48 +448,16 @@ class SettingsDialog:
         positions_frame.pack(padx=10, pady=10, fill="both", expand=True)
         
         for i, position in enumerate(SmakStopper.positions):
-            var = tk.BooleanVar(value=True)  # Default all positions to checked
+            var = tk.BooleanVar(value=True)
             chk = tk.Checkbutton(positions_frame, text=position, variable=var)
             chk.grid(row=i//3, column=i%3, sticky="w")
             self.position_checkboxes[position] = var
             
-        # self.position_entry = tk.Entry(self.settings_window)
-        # if self.settings['position']:
-        #     self.position_entry.insert(0, self.settings['position'])
-        # self.position_entry.pack()
-        # pt(self.position_entry)
-
-        # locations_label = tk.Label(self.settings_window, 
-        #     text="(type in a single location,\nor leave blank for all locations at once)")
-        # locations_label.pack(pady=(0, 2))  
-
-        # possible_locations_label = tk.Label(self.settings_window, 
-        #     text="Possible Locations:")
-        # possible_locations_label.pack(pady=(0, 2))  
-        
-        # positions_rows = [
-        #     SmakStopper.positions[:3],  ## First row (top positions)
-        #     SmakStopper.positions[3:6], ## Second row (center positions)
-        #     SmakStopper.positions[6:]   ## Third row (bottom positions)
-        # ]
-        
-
-        # for i, row in enumerate(positions_rows):
-            # if i == 0:  ## First row
-            #     text = '(' + ', '.join(row)
-            # elif i == len(positions_rows) - 1:  ## Last row
-            #     text = ', '.join(row) + ')'
-            # else:
-            #     text = ', '.join(row)
-            
-            # position_row_label = tk.Label(self.settings_window, text=text)
-            # position_row_label.pack()
-
+ 
     def setup_password_section(self):
         #########################################################
         ## Password Section
         #########################################################
-        
         
         password_section_label = tk.Label(
             self.settings_window, 
@@ -506,28 +465,67 @@ class SettingsDialog:
             font=("Helvetica", self.label_section_font_size, "bold"))
         password_section_label.pack(pady=(10, 5))
 
+        password_frame = tk.Frame(self.settings_window)
+        password_frame.pack(pady=5, fill=tk.X)
+
         ## Current Password
-        self.current_password_label = tk.Label(self.settings_window, text="Current Password:")
-        self.current_password_label.pack()
-        self.current_password_entry = tk.Entry(self.settings_window, show="*")
-        self.current_password_entry.pack()
+        self.current_password_label = tk.Label(password_frame, text="Current Password:")
+        self.current_password_label.grid(row=0, column=0, sticky='e')
+        self.current_password_entry = tk.Entry(password_frame, show="*")
+        self.current_password_entry.grid(row=0, column=1, sticky='ew')
+        self.toggle_current_password = tk.BooleanVar(value=False)
+        self.current_password_checkbutton = tk.Checkbutton(
+            password_frame, 
+            text="Show", 
+            variable=self.toggle_current_password,
+            command=lambda: self.toggle_password_visibility(
+                self.current_password_entry, self.toggle_current_password)
+        )
+        self.current_password_checkbutton.grid(row=0, column=2)
 
         ## New Password
-        self.new_password_label = tk.Label(self.settings_window, text="New Password:")
-        self.new_password_label.pack()
-        self.new_password_entry = tk.Entry(self.settings_window, show="*")
-        self.new_password_entry.pack()
+        self.new_password_label = tk.Label(password_frame, text="New Password:")
+        self.new_password_label.grid(row=1, column=0, sticky='e')
+        self.new_password_entry = tk.Entry(password_frame, show="*")
+        self.new_password_entry.grid(row=1, column=1, sticky='ew')
+        self.toggle_new_password = tk.BooleanVar(value=False)
+        self.new_password_checkbutton = tk.Checkbutton(
+            password_frame, 
+            text="Show", 
+            variable=self.toggle_new_password,
+            command=lambda: self.toggle_password_visibility(
+                self.new_password_entry, self.toggle_new_password)
+        )
+        self.new_password_checkbutton.grid(row=1, column=2)
 
         ## Confirm New Password
-        self.confirm_password_label = tk.Label(self.settings_window, text="Confirm New Password:")
-        self.confirm_password_label.pack()
-        self.confirm_password_entry = tk.Entry(self.settings_window, show="*")
-        self.confirm_password_entry.pack()
+        self.confirm_password_label = tk.Label(password_frame, text="Confirm New Password:")
+        self.confirm_password_label.grid(row=2, column=0, sticky='e')
+        self.confirm_password_entry = tk.Entry(password_frame, show="*")
+        self.confirm_password_entry.grid(row=2, column=1, sticky='ew')
+        self.toggle_confirm_password = tk.BooleanVar(value=False)
+        self.confirm_password_checkbutton = tk.Checkbutton(
+            password_frame, 
+            text="Show", 
+            variable=self.toggle_confirm_password,
+            command=lambda: self.toggle_password_visibility(
+                self.confirm_password_entry, self.toggle_confirm_password)
+        )
+        self.confirm_password_checkbutton.grid(row=2, column=2)
 
         ## Enable Encryption
+        encryption_frame = tk.Frame(self.settings_window)
+        encryption_frame.pack(fill=tk.X, pady=5)
         self.enable_encryption_var = tk.BooleanVar(value=False)
-        self.enable_encryption_checkbox = tk.Checkbutton(self.settings_window, text="Encrypt Password", variable=self.enable_encryption_var)
-        self.enable_encryption_checkbox.pack()
+        self.enable_encryption_checkbox = tk.Checkbutton(encryption_frame, text="Encrypt Password", variable=self.enable_encryption_var)
+        self.enable_encryption_checkbox.pack(side=tk.TOP, anchor='center')
+
+
+    def toggle_password_visibility(self, entry_widget, toggle_var):
+        if toggle_var.get():
+            entry_widget.config(show="")
+        else:
+            entry_widget.config(show="*")
 
     def setup_save_button(self):
         self.save_button = tk.Button(
@@ -550,7 +548,7 @@ class SettingsDialog:
             self.display_option_var.set(1)
         elif self.settings.get('show_password', False):
             self.display_option_var.set(2)
-        elif self.settings.get('show_custom_msg', False):  # Default to True if none are set
+        elif self.settings.get('show_custom_msg', False):
             self.display_option_var.set(3)
 
     def save_settings(self):
@@ -569,7 +567,7 @@ class SettingsDialog:
         elif new_password:
             messagebox.showerror("Error", "New passwords do not match.")
 
-        message_type = 'none'  # Default to 'none'
+        message_type = 'none'
         if self.display_option_var.get() == 2:
             message_type = 'password'
         elif self.display_option_var.get() == 3:
@@ -578,7 +576,7 @@ class SettingsDialog:
         auto_lock_enabled = self.auto_lock_var.get()
         try:
             auto_lock_time = float(self.auto_lock_time_entry.get())
-            # Enforce a minimum auto-lock time of 0.1 minutes (6 seconds)
+            ## Enforce a minimum auto-lock time of 0.1 minutes (6 seconds)
             if auto_lock_time < 0.1:
                 auto_lock_time = 0.1
                 tk.messagebox.showinfo("Notice", "Auto-lock time set to minimum of 0.1 minutes (6 seconds) to prevent accidental continous locking.")
@@ -586,21 +584,7 @@ class SettingsDialog:
             tk.messagebox.showerror("Error", "Invalid auto lock time. Please enter a valid number.")
             return
         
-        
-        # position = None
-        # try:
-        #     position_input = self.position_entry.get().strip().replace(',', ' ')
-        #     pt(position_input)
-        #     if position_input and position_input != '':
-        #         valid_positions = set(SmakStopper.positions)
-
-        #         if position_input.lower() in valid_positions:
-        #             position = position_input
-
-        # except ValueError as e:
-        #     tk.messagebox.showerror("Error", str(e) + " Please enter a valid position from the list: " + ', '.join(SmakStopper.positions))
         selected_positions = [pos for pos, var in self.position_checkboxes.items() if var.get()]
-        # new_settings['selected_positions'] = selected_positions
         
         background_color = self.bg_color_var.get()
         
@@ -652,7 +636,7 @@ class WindowManager:
         self.window2 = None
         self.auto_lock_timer_thread = None
         self.auto_lock_time = SettingsUtility.auto_lock_time
-        self.tray_icon = None  # Reference to the tray icon
+        self.tray_icon = None
         self.icon_image_default = None
         self.icon_image_locked = None
         
@@ -686,7 +670,7 @@ class WindowManager:
     def load_auto_lock_settings(self):
         settings = SettingsUtility.load_settings()
         self.auto_lock_enabled = settings['auto_lock_enabled']
-        self.auto_lock_time = float(settings['auto_lock_time']) * 60  # Convert minutes to seconds
+        self.auto_lock_time = float(settings['auto_lock_time']) * 60  ## Convert minutes to seconds
 
     def reset_auto_lock_timer(self, *args):
         pt()
@@ -724,9 +708,9 @@ class WindowManager:
         if not self.window2 or not self.window2.settings_window.winfo_exists():
             self.window2 = SettingsDialog(master=self.root, manager=self)
         else:
-            self.window2.settings_window.deiconify()  # Restore the window if minimized
-            self.window2.settings_window.lift()       # Bring the window to the top
-            self.window2.settings_window.focus_set()  # Set focus to the window
+            self.window2.settings_window.deiconify()  ## Restore the window if minimized
+            self.window2.settings_window.lift()       ## Bring the window to the top
+            self.window2.settings_window.focus_set()  ## Set focus to the window
 
 
 
@@ -752,6 +736,7 @@ def setup_tray_icon(window_manager):
         Icon = Win32PystrayIcon
         
     def quit_app(icon, window_manager):
+        pt.profile_memory()
         try:
             window_manager.stop_listeners()
             if window_manager.auto_lock_timer:
@@ -766,9 +751,9 @@ def setup_tray_icon(window_manager):
     def on_double_click(icon, item):
         window_manager.toggle_window1()
 
-    # Default icon
+    ## Default icon
     icon_image_default = Image.new('RGB', (64, 64), color='red')
-    # Icon when window1 is active
+    ## Icon when window1 is active
     icon_image_locked = Image.new('RGB', (64, 64), color='green')
 
     menu = (
@@ -782,7 +767,7 @@ def setup_tray_icon(window_manager):
         "SMAK Stopper", icon_image_default, "SMAK Stopper", menu,
         on_double_click=on_double_click if sys.platform == "win32" else None
     )
-    window_manager.tray_icon = icon  # Store the icon in the WindowManager
+    window_manager.tray_icon = icon  ## Store the icon in the WindowManager
     window_manager.icon_image_default = icon_image_default
     window_manager.icon_image_locked = icon_image_locked
     icon.run()
