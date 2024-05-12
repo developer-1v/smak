@@ -49,18 +49,8 @@ class SmakStopper:
         self.on_close_callback = on_close_callback
         
         self.smak_window = tk.Toplevel(self.master)
-        
         self.typed_keys = []
-        self.password = "quit"
-        self.show_custom_msg = True
-        self.show_password = show_password
-        self.custom_msg = custom_msg
-        self.position = position
-
-        self.size = size
-        self.alpha = alpha
         self.listener = None
-        
         
         self.load_settings()
 
@@ -69,7 +59,6 @@ class SmakStopper:
         self.settings = settings
         self.auto_lock_enabled = settings['auto_lock_enabled']
         self.auto_lock_time = settings['auto_lock_time']
-        message_type = settings['message_type']
         self.show_nothing = settings['show_nothing']
         self.show_password = settings['show_password']
         self.show_custom_msg = settings['show_custom_msg']
@@ -83,7 +72,6 @@ class SmakStopper:
     def update_settings(self, new_settings):
         self.auto_lock_enabled = new_settings['auto_lock_enabled']
         self.auto_lock_time = new_settings['auto_lock_time']
-        message_type = new_settings['message_type']
         self.show_nothing = new_settings['show_nothing']
         self.show_password = new_settings['show_password']
         self.show_custom_msg = new_settings['show_custom_msg']
@@ -232,7 +220,6 @@ class SettingsUtility:
         return {
             'auto_lock_enabled': False,
             'auto_lock_time': SettingsUtility.auto_lock_time,
-            'message_type': 'custom',
             'show_nothing': False,
             'show_password': False,
             'show_custom_msg': True,
@@ -567,12 +554,6 @@ class SettingsDialog:
         elif new_password:
             messagebox.showerror("Error", "New passwords do not match.")
 
-        message_type = 'none'
-        if self.display_option_var.get() == 2:
-            message_type = 'password'
-        elif self.display_option_var.get() == 3:
-            message_type = 'custom'
-
         auto_lock_enabled = self.auto_lock_var.get()
         try:
             auto_lock_time = float(self.auto_lock_time_entry.get())
@@ -591,7 +572,6 @@ class SettingsDialog:
         new_settings = {
             'auto_lock_enabled': auto_lock_enabled,
             'auto_lock_time': auto_lock_time,
-            'message_type': message_type,
             'show_nothing': self.display_option_var.get() == 1,
             'show_password': self.display_option_var.get() == 2,
             'show_custom_msg': self.display_option_var.get() == 3,
@@ -673,7 +653,7 @@ class WindowManager:
         self.auto_lock_time = float(settings['auto_lock_time']) * 60  ## Convert minutes to seconds
 
     def reset_auto_lock_timer(self, *args):
-        pt()
+        # pt()
         if self.auto_lock_enabled:
             if self.auto_lock_timer:
                 self.auto_lock_timer.cancel()
