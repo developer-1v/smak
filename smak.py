@@ -1,8 +1,6 @@
 '''TODO
     Encrypted Passwords:
         - Experiment with an actual encrypted system
-            
-    have checkmarks or click-holds that let you see the password your typing in. 
     
     EXE
         - Make this into an optional exe. 
@@ -16,7 +14,7 @@
     Real Icon:
         - Maybe a babies hand with a rattle, smashing the keyboard. 
         - This is from a larger image where maybe a cat's paw is also on the keyboard?
-            
+    
     Readme:
         - Make it a humorous readme. Maybe ask for help with this? 
     
@@ -731,10 +729,15 @@ def setup_tray_icon(window_manager):
     def on_double_click(icon, item):
         window_manager.toggle_window1()
 
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    
     ## Default icon
-    icon_image_default = Image.new('RGB', (64, 64), color='red')
+    # icon_image_default = Image.new('RGB', (64, 64), color='red')
+    icon_image_default = Image.open(os.path.join(dir_path, 'assets', 'SMAK_logo.ico'))
+    
     ## Icon when window1 is active
-    icon_image_locked = Image.new('RGB', (64, 64), color='green')
+    # icon_image_locked = Image.new('RGB', (64, 64), color='green')
+    icon_image_locked = Image.open(os.path.join(dir_path, 'assets', 'SMAK_locked_logo.ico'))
 
     menu = (
         MenuItem('__SMAK STOPPER__', lambda: None),
