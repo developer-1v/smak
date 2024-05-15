@@ -64,6 +64,7 @@ class SmakStopper:
         self.alpha = settings['alpha']
         self.background_color = settings['background_color']
         self.password = list(settings['password'])
+        self.enable_encryption = settings['enable_encryption']
 
     def update_settings(self, new_settings):
         self.auto_lock_enabled = new_settings['auto_lock_enabled']
@@ -192,22 +193,42 @@ class PasswordManager:
     def __init__(self, settings_path):
         self.settings_path = SettingsUtility.get_path()
 
-    def load_settings(self):
-        try:
-            with open(self.settings_path, 'r') as file:
-                settings = json.load(file)
-            return settings
-        except FileNotFoundError:
-            return {}
-
-    def validate_password(self, current_password):
-        settings = self.load_settings()
-        stored_password = settings.get('password', 'quit')
-        return stored_password == current_password
+        self.key = Fernet.generate_key()
+        self.cipher_suite = Fernet(self.key)
 
     def encrypt_password(self, password):
-        ## TODO: Implement encryption
-        return password 
+        """Encrypt the password."""
+        pt('encrypt password')
+        if not isinstance(password, bytes):
+            password = password.encode()  # Ensure password is in bytes
+        encrypted_password = self.cipher_suite.encrypt(password)
+        return encrypted_password.decode()  # Store as string in JSON
+
+    def decrypt_password(self, encrypted_password):
+        """Decrypt the password."""
+        pt('decrypt password')
+        encrypted_password = encrypted_password.encode()  # Convert to bytes
+        decrypted_password = self.cipher_suite.decrypt(encrypted_password)
+        return decrypted_password.decode()
+
+    def validate_password(self, current_password):
+        pt('validate password')
+        settings = self.load_settings()
+        stored_encrypted_password = settings.get('password', None)
+        if stored_encrypted_password:
+            stored_password = self.decrypt_password(stored_encrypted_password)
+            return stored_password == current_password
+        return False
+    
+    # def load_settings(self):
+    #     try:
+    #         with open(self.settings_path, 'r') as file:
+    #             settings = json.load(file)
+    #         return settings
+    #     except FileNotFoundError:
+    #         return {}
+
+    #     return password 
 
 
 class SettingsUtility:
@@ -218,6 +239,7 @@ class SettingsUtility:
         return {
             'auto_lock_enabled': False,
             'auto_lock_time': SettingsUtility.auto_lock_time,
+            'selected_image': 'baby_hand',
             'show_nothing': False,
             'show_password': False,
             'show_custom_msg': True,
@@ -226,7 +248,8 @@ class SettingsUtility:
             'size': 12,
             'alpha': 0.1,
             'background_color': 'black',
-            'password': 'quit'
+            'password': 'quit',
+            'enable_encryption': False
         }
 
     @staticmethod
@@ -526,8 +549,11 @@ class SettingsDialog:
         ## Enable Encryption
         encryption_frame = tk.Frame(self.settings_window)
         encryption_frame.pack(fill=tk.X, pady=5)
-        self.enable_encryption_var = tk.BooleanVar(value=False)
-        self.enable_encryption_checkbox = tk.Checkbutton(encryption_frame, text="Encrypt Password", variable=self.enable_encryption_var)
+        self.enable_encryption_checkbox = tk.Checkbutton(
+            encryption_frame,
+            text="Encrypt Password", 
+            variable=self.enable_encryption
+        )
         self.enable_encryption_checkbox.pack(side=tk.TOP, anchor='center')
 
     def toggle_password_visibility(self, entry_widget, toggle_var):
@@ -553,6 +579,10 @@ class SettingsDialog:
     def load_settings(self):
         self.settings = SettingsUtility.load_settings()
         
+        ## Checkmark box
+        self.enable_encryption = tk.BooleanVar(value=self.settings.get('enable_encryption', False))
+        
+        ## Radio Buttons
         if self.settings.get('show_nothing', False):
             self.display_option_var.set(1)
         elif self.settings.get('show_password', False):
@@ -565,7 +595,7 @@ class SettingsDialog:
         current_password = self.current_password_entry.get()
         new_password = self.new_password_entry.get()
         confirm_password = self.confirm_password_entry.get()
-        enable_encryption = self.enable_encryption_var.get()
+        enable_encryption = self.enable_encryption.get()
         password = self.settings.get('password', 'quit')
 
         if new_password and new_password == confirm_password:
