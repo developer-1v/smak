@@ -10,24 +10,12 @@
         - CMD & therefore maybe the startup command:
             python smak.py --systray
         - Make this optional but selected by defauult
-    
-    Readme:
-        - Make it a humorous readme. Maybe ask for help with this? 
-    
+
     Pypi:
         - Upload to pypi
         - give the pypi and the github the picture, an icon. 
         
-    Logo vs chioce of icons:
-        - Main logo on pypi/github/website is the baby hand and the cat paw. 
-        - User settings allows them to Choose an image with either the
-        baby hand or cats paw, but they are enormous, compared to the overall
-        size of the image. Probably taking 75% of the space. This is to emphasize
-        the SMAK part of the app. 
-            - When they lock the screen, then there is a large cross that goes through
-        the icon, and the cross is red with a white-ish red outline/border
 
-    
     '''
 from print_tricks import pt
 
@@ -39,6 +27,7 @@ from pynput.keyboard import Key, Controller
 
 from pystray import MenuItem as item, Icon, Menu, MenuItem
 from PIL import Image
+
 
 class SmakStopper:
     positions = [
@@ -196,6 +185,7 @@ class SmakStopper:
         if self.on_close_callback:
             self.on_close_callback() 
 
+
 class PasswordManager:
     def __init__(self, settings_path):
         self.settings_path = SettingsUtility.get_path()
@@ -229,7 +219,7 @@ class SettingsUtility:
             'show_nothing': False,
             'show_password': False,
             'show_custom_msg': True,
-            'custom_msg': 'Display a Password Hint, or display password, or show nothing',
+            'custom_msg': 'Custom Message',
             'position': None,
             'size': 12,
             'alpha': 0.1,
@@ -328,9 +318,12 @@ class SettingsDialog:
         self.setup_password_section()
         self.setup_save_button()
         self.update_radio_display_option()
+
         self.settings_window.update()
-        self.manager.update_tray_icon()
+
         self.center_window()
+
+        self.manager.update_tray_icon()
 
     def setup_auto_lock_section(self):
         auto_lock_label = tk.Label(self.settings_window, text="Auto Lock Settings", font=("Helvetica", self.label_section_font_size, "bold"))
@@ -637,6 +630,7 @@ class MainTKLoop:
     def run(self):
         self.root.mainloop()  
 
+
 class WindowManager:
     def __init__(self, root):
         self.root = root
@@ -737,8 +731,6 @@ class WindowManager:
             self.window2.settings_window.focus_set()  ## Set focus to the window
 
 
-
-
 class Win32PystrayIcon(Icon):
     WM_LBUTTONDBLCLK = 0x0203
 
@@ -752,7 +744,6 @@ class Win32PystrayIcon(Icon):
         super()._on_notify(wparam, lparam)
         if lparam == self.WM_LBUTTONDBLCLK:
             self.on_double_click(self, None)
-
 
 
 def setup_tray_icon(window_manager):
@@ -804,6 +795,7 @@ def setup_tray_icon(window_manager):
     update_icon()  # Initial icon setup
     window_manager.tray_icon = icon  ## Store the icon in the WindowManager
     icon.run()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
