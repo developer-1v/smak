@@ -1,8 +1,16 @@
+
+
+
+'''
+Convert image to .ico icon
+
+'''
+
 import os
 from PIL import Image
 import sys
 
-def convert_to_ico(input_path, output_path, sizes=[(32, 32)]):
+def convert_to_ico(input_path, output_path, sizes=[(64, 64)]):
     """
     Convert an image to ICO format.
     
@@ -17,10 +25,38 @@ def convert_to_ico(input_path, output_path, sizes=[(32, 32)]):
 if __name__ == "__main__":
     # Get the directory of the current script
     dir_path = os.path.dirname(os.path.realpath(__file__))
+    assets_dir = os.path.join(dir_path, 'assets')
 
-    # Construct the full path for the input and output
-    input_image = os.path.join(dir_path, 'assets', 'SMAK_logo.png')
-    output_ico = os.path.join(dir_path, 'assets', 'SMAK_logo.ico')
+    # Loop through all files in the assets directory
+    for file_name in os.listdir(assets_dir):
+        if file_name.endswith('.png'):
+            input_image = os.path.join(assets_dir, file_name)
+            output_ico = os.path.join(assets_dir, file_name.replace('.png', '.ico'))
+            
+            convert_to_ico(input_image, output_ico)
+
+
+'''
+Profile memory of import statements
+
+'''
+
+# from memory_profiler import profile
+
+# @profile
+# def import_modules():
+#     from print_tricks import pt
     
-    convert_to_ico(input_image, output_ico)
+#     import json, ctypes, threading, sys, os, time
+#     import tkinter as tk
+#     from tkinter import font, messagebox
+#     from pynput import keyboard, mouse
+#     from pystray import MenuItem as item, Icon, Menu, MenuItem
+#     from PIL import Image
 
+# # Call the function to execute the imports and profile them
+# import_modules()
+
+# '''
+# python -m memory_profiler test.py
+# '''

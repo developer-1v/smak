@@ -11,23 +11,29 @@
             python smak.py --systray
         - Make this optional but selected by defauult
     
-    Real Icon:
-        - Maybe a babies hand with a rattle, smashing the keyboard. 
-        - This is from a larger image where maybe a cat's paw is also on the keyboard?
-    
     Readme:
         - Make it a humorous readme. Maybe ask for help with this? 
     
     Pypi:
         - Upload to pypi
         - give the pypi and the github the picture, an icon. 
+        
+    Logo vs chioce of icons:
+        - Main logo on pypi/github/website is the baby hand and the cat paw. 
+        - User settings allows them to Choose an image with either the
+        baby hand or cats paw, but they are enormous, compared to the overall
+        size of the image. Probably taking 75% of the space. This is to emphasize
+        the SMAK part of the app. 
+            - When they lock the screen, then there is a large cross that goes through
+        the icon, and the cross is red with a white-ish red outline/border
+
     
     '''
 from print_tricks import pt
 
 import json, ctypes, threading, sys, os, time
 import tkinter as tk
-from tkinter import font, messagebox
+from tkinter import font, messagebox, PhotoImage
 from pynput import keyboard, mouse
 from pynput.keyboard import Key, Controller
 
@@ -57,6 +63,7 @@ class SmakStopper:
         self.settings = settings
         self.auto_lock_enabled = settings['auto_lock_enabled']
         self.auto_lock_time = settings['auto_lock_time']
+        self.selected_image = settings['selected_image']
         self.show_nothing = settings['show_nothing']
         self.show_password = settings['show_password']
         self.show_custom_msg = settings['show_custom_msg']
@@ -70,6 +77,7 @@ class SmakStopper:
     def update_settings(self, new_settings):
         self.auto_lock_enabled = new_settings['auto_lock_enabled']
         self.auto_lock_time = new_settings['auto_lock_time']
+        self.selected_image = new_settings['selected_image']
         self.show_nothing = new_settings['show_nothing']
         self.show_password = new_settings['show_password']
         self.show_custom_msg = new_settings['show_custom_msg']
@@ -314,12 +322,14 @@ class SettingsDialog:
 
     def setup_window_contents(self):
         self.setup_auto_lock_section()
+        self.setup_image_selection()
         self.setup_window_appearance()
         self.setup_message_display_options()
         self.setup_password_section()
         self.setup_save_button()
         self.update_radio_display_option()
         self.settings_window.update()
+        self.manager.update_tray_icon()
         self.center_window()
 
     def setup_auto_lock_section(self):
@@ -335,6 +345,30 @@ class SettingsDialog:
         self.auto_lock_time_entry = tk.Entry(self.settings_window)
         self.auto_lock_time_entry.insert(0, str(self.settings.get('auto_lock_time', 50)))
         self.auto_lock_time_entry.pack()
+
+    def setup_image_selection(self):
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        
+        self.baby_hand_image = PhotoImage(file=os.path.join(dir_path, 'assets', 
+            'SMAK_Hand_Icon.png'))
+        self.cat_paw_image = PhotoImage(file=os.path.join(dir_path, 'assets', 
+            'SMAK_Cat_Icon.png'))
+
+        # Create a frame for image selection
+        image_frame = tk.Frame(self.settings_window)
+        image_frame.pack(pady=10)
+
+        # Display images
+        tk.Label(image_frame, image=self.baby_hand_image).grid(row=0, column=0)
+        tk.Label(image_frame, image=self.cat_paw_image).grid(row=0, column=1)
+
+        # Variables for radio buttons
+        # self.selected_image_var = tk.StringVar(value='baby_hand')
+        self.selected_image_var = tk.StringVar(value=self.settings.get('selected_image', 'baby_hand'))
+
+        # Radio buttons for selecting the image
+        tk.Radiobutton(image_frame, text="Baby Hand", variable=self.selected_image_var, value='baby_hand').grid(row=1, column=0)
+        tk.Radiobutton(image_frame, text="Cat's Paw", variable=self.selected_image_var, value='cat_paw').grid(row=1, column=1)
 
     def setup_window_appearance(self):
         #########################################################
@@ -424,12 +458,9 @@ class SettingsDialog:
         ###################
         ## Positions to display Unlock message(s)
         ###################
-        positions_title_label = tk.Label(self.settings_window, text="Message Location:")
-        positions_title_label.pack(pady=(10, 0))
-
         
         self.position_checkboxes = {}
-        positions_frame = tk.LabelFrame(self.settings_window, text="Message Positions", padx=5, pady=5)
+        positions_frame = tk.LabelFrame(self.settings_window, text="Message Locations", padx=5, pady=5)
         positions_frame.pack(padx=10, pady=10, fill="both", expand=True)
         
         for i, position in enumerate(SmakStopper.positions):
@@ -437,8 +468,7 @@ class SettingsDialog:
             chk = tk.Checkbutton(positions_frame, text=position, variable=var)
             chk.grid(row=i//3, column=i%3, sticky="w")
             self.position_checkboxes[position] = var
-            
- 
+
     def setup_password_section(self):
         #########################################################
         ## Password Section
@@ -505,7 +535,6 @@ class SettingsDialog:
         self.enable_encryption_checkbox = tk.Checkbutton(encryption_frame, text="Encrypt Password", variable=self.enable_encryption_var)
         self.enable_encryption_checkbox.pack(side=tk.TOP, anchor='center')
 
-
     def toggle_password_visibility(self, entry_widget, toggle_var):
         if toggle_var.get():
             entry_widget.config(show="")
@@ -565,11 +594,11 @@ class SettingsDialog:
         
         selected_positions = [pos for pos, var in self.position_checkboxes.items() if var.get()]
         
-        background_color = self.bg_color_var.get()
         
         new_settings = {
             'auto_lock_enabled': auto_lock_enabled,
             'auto_lock_time': auto_lock_time,
+            'selected_image': self.selected_image_var.get(),
             'show_nothing': self.display_option_var.get() == 1,
             'show_password': self.display_option_var.get() == 2,
             'show_custom_msg': self.display_option_var.get() == 3,
@@ -577,7 +606,7 @@ class SettingsDialog:
             'selected_positions': selected_positions,
             'size': int(self.size_entry.get()),
             'alpha': float(self.alpha_entry.get()),
-            'background_color': background_color,
+            'background_color': self.bg_color_var.get(),
             'password': password,
             'enable_encryption': enable_encryption,
         }
@@ -590,6 +619,7 @@ class SettingsDialog:
         if self.manager:
             self.manager.load_auto_lock_settings()
             self.manager.reset_auto_lock_timer()
+            self.manager.update_tray_icon()
             
             if auto_lock_enabled:
                 self.manager.start_listeners()
@@ -665,6 +695,22 @@ class WindowManager:
         if not self.window1 or not self.window1.smak_window.winfo_exists():
             self.root.after(0, self.toggle_window1)
 
+    def update_tray_icon(self):
+        if self.tray_icon:
+            settings = SettingsUtility.load_settings()
+            selected_image = settings.get('selected_image', 'baby_hand')
+            dir_path = os.path.dirname(os.path.realpath(__file__))
+            if selected_image == 'baby_hand':
+                icon_image_default = Image.open(os.path.join(dir_path, 'assets', 'SMAK_Hand_Icon.ico'))
+                icon_image_locked = Image.open(os.path.join(dir_path, 'assets', 'SMAK_Hand_Locked_Icon.ico'))
+            elif selected_image == 'cat_paw':
+                icon_image_default = Image.open(os.path.join(dir_path, 'assets', 'SMAK_Cat_Icon.ico'))
+                icon_image_locked = Image.open(os.path.join(dir_path, 'assets', 'SMAK_Cat_Locked_Icon.ico'))
+            
+            self.tray_icon.icon = icon_image_default
+            self.icon_image_default = icon_image_default
+            self.icon_image_locked = icon_image_locked
+
     def toggle_window1(self):
         if not self.window1 or not self.window1.smak_window.winfo_exists():
             self.window1 = SmakStopper(master=self.root, on_close_callback=self.on_window1_close)
@@ -729,15 +775,20 @@ def setup_tray_icon(window_manager):
     def on_double_click(icon, item):
         window_manager.toggle_window1()
 
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    
-    ## Default icon
-    # icon_image_default = Image.new('RGB', (64, 64), color='red')
-    icon_image_default = Image.open(os.path.join(dir_path, 'assets', 'SMAK_logo.ico'))
-    
-    ## Icon when window1 is active
-    # icon_image_locked = Image.new('RGB', (64, 64), color='green')
-    icon_image_locked = Image.open(os.path.join(dir_path, 'assets', 'SMAK_locked_logo.ico'))
+    def update_icon():
+        settings = SettingsUtility.load_settings()
+        selected_image = settings.get('selected_image', 'baby_hand')
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        if selected_image == 'baby_hand':
+            icon_image_default = Image.open(os.path.join(dir_path, 'assets', 'SMAK_Hand_Icon.ico'))
+            icon_image_locked = Image.open(os.path.join(dir_path, 'assets', 'SMAK_Hand_Locked_Icon.ico'))
+        elif selected_image == 'cat_paw':
+            icon_image_default = Image.open(os.path.join(dir_path, 'assets', 'SMAK_Cat_Icon.ico'))
+            icon_image_locked = Image.open(os.path.join(dir_path, 'assets', 'SMAK_Cat_Locked_Icon.ico'))
+        
+        icon.icon = icon_image_default
+        window_manager.icon_image_default = icon_image_default
+        window_manager.icon_image_locked = icon_image_locked
 
     menu = (
         MenuItem('__SMAK STOPPER__', lambda: None),
@@ -747,12 +798,11 @@ def setup_tray_icon(window_manager):
         MenuItem('Quit', lambda: quit_app(icon, window_manager))
     )
     icon = Icon(
-        "SMAK Stopper", icon_image_default, "SMAK Stopper", menu,
+        "SMAK Stopper", None, "SMAK Stopper", menu,
         on_double_click=on_double_click if sys.platform == "win32" else None
     )
+    update_icon()  # Initial icon setup
     window_manager.tray_icon = icon  ## Store the icon in the WindowManager
-    window_manager.icon_image_default = icon_image_default
-    window_manager.icon_image_locked = icon_image_locked
     icon.run()
 
 if __name__ == "__main__":
