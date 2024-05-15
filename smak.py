@@ -17,6 +17,7 @@
         
 
     '''
+
 from print_tricks import pt
 
 import json, ctypes, threading, sys, os, time
@@ -28,6 +29,7 @@ from pynput.keyboard import Key, Controller
 from pystray import MenuItem as item, Icon, Menu, MenuItem
 from PIL import Image
 
+from cryptography.fernet import Fernet
 
 class SmakStopper:
     positions = [
@@ -751,7 +753,7 @@ def setup_tray_icon(window_manager):
         Icon = Win32PystrayIcon
         
     def quit_app(icon, window_manager):
-        pt.profile_memory()
+        # pt.profile_memory()
         try:
             window_manager.stop_listeners()
             if window_manager.auto_lock_timer:
