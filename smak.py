@@ -18,6 +18,7 @@
 
     '''
 
+
 from print_tricks import pt
 
 import json, ctypes, threading, sys, os, time
@@ -29,7 +30,12 @@ from pynput.keyboard import Key, Controller
 from pystray import MenuItem as item, Icon, Menu, MenuItem
 from PIL import Image
 
-from cryptography.fernet import Fernet
+## TODO: Consider moving this into Password management, and just import if encryption
+## is checked. 
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad, unpad
+import base64
 
 class SmakStopper:
     positions = [
@@ -191,28 +197,37 @@ class SmakStopper:
 
 class PasswordManager:
     def __init__(self, settings_path):
-        self.settings_path = SettingsUtility.get_path()
+        self.settings_path = settings_path
+        self.key_path = os.path.join(os.path.dirname(settings_path), 'secret.key')
+        self.load_or_generate_key()
 
-        self.key = Fernet.generate_key()
-        self.cipher_suite = Fernet(self.key)
+    def load_or_generate_key(self):
+        if os.path.exists(self.key_path):
+            with open(self.key_path, 'rb') as key_file:
+                self.key = key_file.read()
+        else:
+            self.key = get_random_bytes(16)  # AES key must be either 16, 24, or 32 bytes long
+            with open(self.key_path, 'wb') as key_file:
+                key_file.write(self.key)
 
     def encrypt_password(self, password):
         """Encrypt the password."""
-        pt('encrypt password')
-        if not isinstance(password, bytes):
-            password = password.encode()  # Ensure password is in bytes
-        encrypted_password = self.cipher_suite.encrypt(password)
-        return encrypted_password.decode()  # Store as string in JSON
+        cipher = AES.new(self.key, AES.MODE_CBC)
+        ct_bytes = cipher.encrypt(pad(password.encode(), AES.block_size))
+        iv = base64.b64encode(cipher.iv).decode('utf-8')
+        ct = base64.b64encode(ct_bytes).decode('utf-8')
+        return iv + ":" + ct
 
     def decrypt_password(self, encrypted_password):
         """Decrypt the password."""
-        pt('decrypt password')
-        encrypted_password = encrypted_password.encode()  # Convert to bytes
-        decrypted_password = self.cipher_suite.decrypt(encrypted_password)
-        return decrypted_password.decode()
+        iv, ct = encrypted_password.split(':')
+        iv = base64.b64decode(iv)
+        ct = base64.b64decode(ct)
+        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        pt = unpad(cipher.decrypt(ct), AES.block_size)
+        return pt.decode()
 
     def validate_password(self, current_password):
-        pt('validate password')
         settings = self.load_settings()
         stored_encrypted_password = settings.get('password', None)
         if stored_encrypted_password:
@@ -289,7 +304,9 @@ class SettingsDialog:
         ## This makes the window a tool window which removes the maximize and minimize buttons
         self.settings_window.attributes('-toolwindow', True)
         self.display_option_var = tk.IntVar(value=3)  ## Default to 'Show custom message'
-
+        
+        # Initialize enable_encryption as a BooleanVar instead of a boolean
+        self.enable_encryption = tk.BooleanVar(value=False)
         
         ## Set the window as modal and focus
         self.settings_window.transient(None)
@@ -552,9 +569,16 @@ class SettingsDialog:
         self.enable_encryption_checkbox = tk.Checkbutton(
             encryption_frame,
             text="Encrypt Password", 
-            variable=self.enable_encryption
+            variable=self.enable_encryption  # Associate the BooleanVar with the Checkbutton
         )
         self.enable_encryption_checkbox.pack(side=tk.TOP, anchor='center')
+        ...
+        # self.enable_encryption_checkbox = tk.Checkbutton(
+        #     encryption_frame,
+        #     text="Encrypt Password", 
+        #     variable=self.enable_encryption
+        # )
+        # self.enable_encryption_checkbox.pack(side=tk.TOP, anchor='center')
 
     def toggle_password_visibility(self, entry_widget, toggle_var):
         if toggle_var.get():
@@ -580,7 +604,7 @@ class SettingsDialog:
         self.settings = SettingsUtility.load_settings()
         
         ## Checkmark box
-        self.enable_encryption = tk.BooleanVar(value=self.settings.get('enable_encryption', False))
+        self.enable_encryption.set(self.settings.get('enable_encryption', False))
         
         ## Radio Buttons
         if self.settings.get('show_nothing', False):
@@ -592,34 +616,13 @@ class SettingsDialog:
 
     def save_settings(self):
 
-        current_password = self.current_password_entry.get()
-        new_password = self.new_password_entry.get()
-        confirm_password = self.confirm_password_entry.get()
-        enable_encryption = self.enable_encryption.get()
-        password = self.settings.get('password', 'quit')
-
-        if new_password and new_password == confirm_password:
-            if self.password_manager.validate_password(current_password):
-                password = self.change_password(new_password, enable_encryption)
-            else:
-                messagebox.showerror("Error", "Current password is incorrect.")
-        elif new_password:
-            messagebox.showerror("Error", "New passwords do not match.")
+        password = self.process_password()
 
         auto_lock_enabled = self.auto_lock_var.get()
-        try:
-            auto_lock_time = float(self.auto_lock_time_entry.get())
-            ## Enforce a minimum auto-lock time of 0.1 minutes (6 seconds)
-            if auto_lock_time < 0.1:
-                auto_lock_time = 0.1
-                tk.messagebox.showinfo("Notice", "Auto-lock time set to minimum of 0.1 minutes (6 seconds) to prevent accidental continous locking.")
-        except ValueError:
-            tk.messagebox.showerror("Error", "Invalid auto lock time. Please enter a valid number.")
-            return
-        
+        auto_lock_time = self.process_auto_lock_time()
+
         selected_positions = [pos for pos, var in self.position_checkboxes.items() if var.get()]
-        
-        
+
         new_settings = {
             'auto_lock_enabled': auto_lock_enabled,
             'auto_lock_time': auto_lock_time,
@@ -633,9 +636,9 @@ class SettingsDialog:
             'alpha': float(self.alpha_entry.get()),
             'background_color': self.bg_color_var.get(),
             'password': password,
-            'enable_encryption': enable_encryption,
+            'enable_encryption': self.enable_encryption.get(),  # Use the BooleanVar to get the state
         }
-        
+
         settings_path = SettingsUtility.get_path()
         with open(settings_path, 'w') as file:
             json.dump(new_settings, file)
@@ -652,6 +655,42 @@ class SettingsDialog:
                 self.manager.stop_listeners()
             
                 self.close()
+
+    def process_password(self):
+        current_password = self.current_password_entry.get()
+        new_password = self.new_password_entry.get()
+        confirm_password = self.confirm_password_entry.get()
+        enable_encryption = self.enable_encryption.get()
+
+        if new_password:
+            if new_password == confirm_password:
+                if self.password_manager.validate_password(current_password):
+                    # Encrypt the new password if encryption is enabled
+                    if enable_encryption:
+                        new_password = self.password_manager.encrypt_password(new_password)
+                    return new_password
+                else:
+                    messagebox.showerror("Error", "Current password is incorrect.")
+                    return None
+            else:
+                messagebox.showerror("Error", "New passwords do not match.")
+                return None
+        else:
+            # If no new password is entered, return the current settings
+            return self.settings['password'], self.settings['enable_encryption']
+
+
+    def process_auto_lock_time(self):
+        try:
+            auto_lock_time = float(self.auto_lock_time_entry.get())
+            ## Enforce a minimum auto-lock time of 0.1 minutes (6 seconds)
+            if auto_lock_time < 0.1:
+                auto_lock_time = 0.1
+                tk.messagebox.showinfo("Notice", "Auto-lock time set to minimum of 0.1 minutes (6 seconds) to prevent accidental continous locking.")
+        except ValueError:
+            tk.messagebox.showerror("Error", "Invalid auto lock time. Please enter a valid number.")
+            return
+        return auto_lock_time
 
 
 class MainTKLoop:
