@@ -357,13 +357,14 @@ class SettingsDialog:
         pt(size, w,h,x,y)
 
     def setup_window_contents(self):
-        ## Set a default size for the window
-        ## Center the window immediately after setting the size
+        
+        ## Hide the window until all content loaded
+        self.settings_window.withdraw()
+        
         ## Set DPI awareness (No longer necessary, but will be more seamless/integrated)
         ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        self.center_window(initial_centering=True)
-        # self.settings_window.update()
         
+        ## Setup contents
         self.setup_auto_lock_section()
         self.setup_image_selection()
         self.setup_window_appearance()
@@ -374,8 +375,13 @@ class SettingsDialog:
 
         self.settings_window.update()
 
+        ## Bring back window into focus
+        self.settings_window.deiconify()
+        
+        ## Center (NOTE: this has to happen after deiconify() or else it won't center properly)
         self.center_window()
-
+        
+        ## Tray
         self.manager.update_tray_icon()
 
     def setup_auto_lock_section(self):
