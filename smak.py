@@ -42,9 +42,10 @@ class SmakStopper:
             "bottom left", "bottom center", "bottom right"
         ]
 
-    def __init__(self, master, on_close_callback=None, show_password=False, custom_msg=None, position=None, size=12, alpha=0.1):
+    def __init__(self, master, password_manager, on_close_callback=None, show_password=False, custom_msg=None, position=None, size=12, alpha=0.1):
         # pt('init')
         self.master = master
+        self.password_manager = password_manager
         self.on_close_callback = on_close_callback
         
         self.smak_window = tk.Toplevel(self.master)
@@ -56,6 +57,7 @@ class SmakStopper:
     def load_settings(self):
         settings = SettingsUtility.load_settings()
         self.settings = settings
+        
         self.auto_lock_enabled = settings['auto_lock_enabled']
         self.auto_lock_time = settings['auto_lock_time']
         self.selected_image = settings['selected_image']
@@ -70,6 +72,16 @@ class SmakStopper:
         self.password = list(settings['password'])
         self.enable_encryption = settings['enable_encryption']
 
+        # Decrypt password if encryption is enabled
+        if self.enable_encryption:
+            encrypted_password = settings['password']
+            try:
+                self.password = list(self.password_manager.decrypt_password(encrypted_password))
+            except ValueError as e:
+                print(f"Error decrypting password: {str(e)}")
+        else:
+            self.password = list(settings['password'])
+            
     def update_settings(self, new_settings):
         self.auto_lock_enabled = new_settings['auto_lock_enabled']
         self.auto_lock_time = new_settings['auto_lock_time']
@@ -159,25 +171,39 @@ class SmakStopper:
 
     def on_press(self, key):
 
+        if hasattr(key, 'char') and key.char == '1':
+            ## TODO: Temporary destroy for testing. 
+            self.close()
+            
         if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
             return
 
         ## TODO: Temporary destroy for testing. 
-        if hasattr(key, 'char') and key.char == '1':
-            ## TODO: Temporary destroy for testing. 
-            self.close()
-
         if hasattr(key, 'char') and key.char:
             key_value = key.char
         else:
             key_value = key
 
         self.typed_keys.append(key_value)
+        # Ensure we only check the last 'n' characters where 'n' is the length of the password
         if len(self.typed_keys) > len(self.password):
             self.typed_keys = self.typed_keys[-len(self.password):]
 
-        if self.typed_keys == self.password:
-            self.close()
+        # Convert typed keys to a string for comparison
+        typed_password = ''.join(self.typed_keys)
+
+        if self.enable_encryption:
+            # Decrypt the stored password for comparison
+            try:
+                decrypted_password = self.password_manager.decrypt_password(''.join(self.password))
+                if typed_password == decrypted_password:
+                    self.close()
+            except ValueError as e:
+                print(f"Error decrypting password: {str(e)}")
+        else:
+            # Direct comparison if encryption is not enabled
+            if typed_password == ''.join(self.password):
+                self.close()
 
     def run(self):
         self.start_keyboard_listener()
@@ -305,13 +331,13 @@ class SettingsUtility:
 
 
 class SettingsDialog:
-    def __init__(self, master, manager=None, system_tray_app=None):
+    def __init__(self, master, password_manager, manager=None, system_tray_app=None):
         self.master = master
         self.manager = manager
         self.system_tray_app = system_tray_app
         
-        self.password_manager = PasswordManager(SettingsUtility.get_path())
-
+        self.password_manager = password_manager
+        
         self.settings_window = tk.Toplevel(self.master, )
         self.settings_window.title("SMAK Settings")
         self.label_section_font_size = 12
@@ -738,6 +764,9 @@ class WindowManager:
         self.mouse_listener = None
         self.auto_lock_timer = None
         
+        self.password_manager = PasswordManager(SettingsUtility.get_path())
+
+        
         self.load_auto_lock_settings()
         if self.auto_lock_enabled:
             self.start_listeners()
@@ -799,7 +828,10 @@ class WindowManager:
 
     def toggle_window1(self):
         if not self.window1 or not self.window1.smak_window.winfo_exists():
-            self.window1 = SmakStopper(master=self.root, on_close_callback=self.on_window1_close)
+            self.window1 = SmakStopper(
+                master=self.root, 
+                password_manager=self.password_manager,
+                on_close_callback=self.on_window1_close)
             self.window1.run()
             if self.tray_icon:
                 self.tray_icon.icon = self.icon_image_locked  ## Change icon to active
@@ -816,7 +848,10 @@ class WindowManager:
 
     def toggle_window2(self):
         if not self.window2 or not self.window2.settings_window.winfo_exists():
-            self.window2 = SettingsDialog(master=self.root, manager=self)
+            self.window2 = SettingsDialog(
+                master=self.root, 
+                manager=self, 
+                password_manager=self.password_manager)
         else:
             self.window2.settings_window.deiconify()  ## Restore the window if minimized
             self.window2.settings_window.lift()       ## Bring the window to the top
