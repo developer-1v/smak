@@ -72,10 +72,14 @@ class SmakStopper:
         self.alpha = settings['alpha']
         self.background_color = settings['background_color']
         self.enable_encryption = settings['enable_encryption']
-
+        
+        password = settings['password']
+        if password is None or password == '':
+            password = SettingsUtility.default_settings()['password']
+        
         # Handle password decryption or direct application based on encryption setting
         if self.enable_encryption:
-            encrypted_password = settings['password']
+            encrypted_password = password
             try:
                 decrypted_password = self.password_manager.decrypt_password(encrypted_password)
                 self.password = list(decrypted_password) if decrypted_password else []
@@ -83,7 +87,7 @@ class SmakStopper:
                 print(f"Error decrypting password: {str(e)}")
                 self.password = []  # Set to empty list if decryption fails
         else:
-            self.password = list(settings['password'])  # Use the password directly if not encrypted
+            self.password = list(password)  # Use the password directly if not encrypted
 
         self.setup_window()  
 
@@ -308,6 +312,7 @@ class PasswordManager:
             return True
         except (ValueError, TypeError, base64.binascii.Error):
             return False
+    
     def validate_password(self, current_password):
         pt('validating password')
         
@@ -763,16 +768,27 @@ class SettingsDialog:
             else:
                 return new_password
         else:
-            # No new password entered, return the existing one, potentially re-encrypting if settings changed
-            existing_password_encrypted = self.settings['password']
-            pt(existing_password_encrypted)
+            # No new password entered, check if encryption is enabled
+            pt(SettingsUtility.default_settings()['password'])
+            existing_password_encrypted = self.settings.get('password', SettingsUtility.default_settings()['password'])
             if enable_encryption:
-                pt(1)
                 if not self.password_manager.cipher:
-                    pt(2)
                     self.password_manager.initialize_cipher()
                 return self.password_manager.encrypt_password(existing_password_encrypted)
-            return existing_password_encrypted
+            else:
+                # If encryption is not enabled, check if the stored password is encrypted
+                if self.password_manager.is_encrypted(existing_password_encrypted):
+                    # Initialize cipher if it's not already, to decrypt the password
+                    if not self.password_manager.cipher:
+                        self.password_manager.initialize_cipher()
+                    try:
+                        return self.password_manager.decrypt_password(existing_password_encrypted)
+                    except Exception as e:
+                        print(f"Failed to decrypt with error: {e}")
+                        # Fallback to default password if decryption fails
+                        return SettingsUtility.default_settings()['password']
+                # Use the default password directly if no encryption and no new password is set
+                return SettingsUtility.default_settings()['password']
 
     def process_auto_lock_time(self):
         try:
