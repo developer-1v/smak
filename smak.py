@@ -268,10 +268,10 @@ class PasswordManager:
             return decrypted_password.decode()
         except InvalidToken:
             print("Failed to decrypt: Invalid token or key.")
-            return ""  # Return an empty string instead of None
+            return SettingsUtility.default_settings()['password']
         except Exception as e:
             print(f"Unexpected error during decryption: {e}")
-            return ""  # Return an empty string instead of None
+            return SettingsUtility.default_settings()['password']
 
     def update_encryption_setting(self, enable_encryption):
         pt('update encryption setting')
@@ -768,27 +768,26 @@ class SettingsDialog:
             else:
                 return new_password
         else:
-            # No new password entered, check if encryption is enabled
-            pt(SettingsUtility.default_settings()['password'])
-            existing_password_encrypted = self.settings.get('password', SettingsUtility.default_settings()['password'])
+            # No new password entered, handle existing password
+            existing_password = self.settings.get('password', SettingsUtility.default_settings()['password'])
             if enable_encryption:
                 if not self.password_manager.cipher:
                     self.password_manager.initialize_cipher()
-                return self.password_manager.encrypt_password(existing_password_encrypted)
+                if not self.password_manager.is_encrypted(existing_password):
+                    existing_password = self.password_manager.encrypt_password(existing_password)
+                return existing_password
             else:
-                # If encryption is not enabled, check if the stored password is encrypted
-                if self.password_manager.is_encrypted(existing_password_encrypted):
-                    # Initialize cipher if it's not already, to decrypt the password
+                # If encryption is not enabled, ensure the password is decrypted if it was encrypted
+                if self.password_manager.is_encrypted(existing_password):
                     if not self.password_manager.cipher:
                         self.password_manager.initialize_cipher()
                     try:
-                        return self.password_manager.decrypt_password(existing_password_encrypted)
+                        existing_password = self.password_manager.decrypt_password(existing_password)
                     except Exception as e:
                         print(f"Failed to decrypt with error: {e}")
-                        # Fallback to default password if decryption fails
-                        return SettingsUtility.default_settings()['password']
-                # Use the default password directly if no encryption and no new password is set
-                return SettingsUtility.default_settings()['password']
+                        existing_password = SettingsUtility.default_settings()['password']
+                        pt(existing_password)
+                return existing_password
 
     def process_auto_lock_time(self):
         try:
