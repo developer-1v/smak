@@ -54,8 +54,10 @@ class SmakStopper:
         
         self.load_settings()
 
-    def load_settings(self):
-        settings = SettingsUtility.load_settings()
+    def load_settings(self, settings=None):
+        if settings is None:
+            settings = SettingsUtility.load_settings()
+        
         self.settings = settings
         
         self.auto_lock_enabled = settings['auto_lock_enabled']
@@ -69,35 +71,21 @@ class SmakStopper:
         self.size = settings['size']
         self.alpha = settings['alpha']
         self.background_color = settings['background_color']
-        self.password = list(settings['password'])
         self.enable_encryption = settings['enable_encryption']
 
-        # Decrypt password if encryption is enabled
+        # Handle password decryption or direct application based on encryption setting
         if self.enable_encryption:
             encrypted_password = settings['password']
             try:
-                self.password = list(self.password_manager.decrypt_password(encrypted_password))
+                decrypted_password = self.password_manager.decrypt_password(encrypted_password)
+                self.password = list(decrypted_password) if decrypted_password else []
             except ValueError as e:
                 print(f"Error decrypting password: {str(e)}")
+                self.password = []  # Set to empty list if decryption fails
         else:
-            self.password = list(settings['password'])
-            
-    def update_settings(self, new_settings):
-        self.auto_lock_enabled = new_settings['auto_lock_enabled']
-        self.auto_lock_time = new_settings['auto_lock_time']
-        self.selected_image = new_settings['selected_image']
-        self.show_nothing = new_settings['show_nothing']
-        self.show_password = new_settings['show_password']
-        self.show_custom_msg = new_settings['show_custom_msg']
-        self.custom_msg = new_settings['custom_msg']
-        self.position = new_settings['position']
-        self.size = new_settings['size']
-        self.alpha = new_settings['alpha']
-        self.background_color = new_settings['background_color']
-        self.password = new_settings['password']
-        
-        
-        self.setup_window()
+            self.password = list(settings['password'])  # Use the password directly if not encrypted
+
+        self.setup_window()  
 
     def setup_window(self):
 
@@ -170,40 +158,50 @@ class SmakStopper:
             self.listener = None
 
     def on_press(self, key):
-
+        ## TODO: Remove this after testing
+        self.on_press_development(key)
+        
+        ## keep this
+        self.on_press_production(key)
+        
+    def on_press_development(self, key):
         if hasattr(key, 'char') and key.char == '1':
             ## TODO: Temporary destroy for testing. 
-            self.close()
+            self.close()    
             
+    def on_press_production(self, key):
         if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
             return
 
-        ## TODO: Temporary destroy for testing. 
         if hasattr(key, 'char') and key.char:
             key_value = key.char
         else:
             key_value = key
+        pt(key_value)
 
         self.typed_keys.append(key_value)
-        # Ensure we only check the last 'n' characters where 'n' is the length of the password
-        if len(self.typed_keys) > len(self.password):
-            self.typed_keys = self.typed_keys[-len(self.password):]
+        # Ensure we only check the last 'n' characters where 'n' is the length of the encrypted password
+        encrypted_password_length = len(''.join(self.password))  # Assuming self.password is the encrypted password
 
-        # Convert typed keys to a string for comparison
-        typed_password = ''.join(self.typed_keys)
+        if len(self.typed_keys) >= encrypted_password_length:
+            self.typed_keys = self.typed_keys[-encrypted_password_length:]
 
-        if self.enable_encryption:
-            # Decrypt the stored password for comparison
-            try:
-                decrypted_password = self.password_manager.decrypt_password(''.join(self.password))
-                if typed_password == decrypted_password:
+            # Convert typed keys to a string for comparison
+            typed_password = ''.join(self.typed_keys)
+
+            if self.enable_encryption:
+                # Decrypt the stored password for comparison only if the length matches
+                if len(typed_password) == encrypted_password_length:
+                    try:
+                        decrypted_password = self.password_manager.decrypt_password(''.join(self.password))
+                        if typed_password == decrypted_password:
+                            self.close()
+                    except ValueError as e:
+                        print(f"Error decrypting password: {str(e)}")
+            else:
+                # Direct comparison if encryption is not enabled
+                if typed_password == ''.join(self.password):
                     self.close()
-            except ValueError as e:
-                print(f"Error decrypting password: {str(e)}")
-        else:
-            # Direct comparison if encryption is not enabled
-            if typed_password == ''.join(self.password):
-                self.close()
 
     def run(self):
         self.start_keyboard_listener()
@@ -229,9 +227,54 @@ class PasswordManager:
         self.settings_path = settings_path
         self.key_path = os.path.join(os.path.dirname(settings_path), 'secret.key')
         self.settings = SettingsUtility.load_settings()
+        self.cipher = None  # Initialize cipher as None
         if self.settings.get('enable_encryption', False):
-            pt('encryption enabled.')
-            self.load_or_generate_key()
+            self.initialize_cipher()
+
+    def initialize_cipher(self):
+        pt('initialize cipher')
+        try:
+            if os.path.exists(self.key_path):
+                with open(self.key_path, 'rb') as key_file:
+                    key_data = key_file.read()
+                    self.key = base64.urlsafe_b64decode(key_data)
+            else:
+                # Key does not exist, generate a new one
+                self.key = Fernet.generate_key()
+                with open(self.key_path, 'wb') as key_file:
+                    key_file.write(base64.urlsafe_b64encode(self.key))
+            self.cipher = Fernet(self.key)
+        except Exception as e:
+            print(f"Error initializing cipher: {e}")
+            # Handle error (e.g., log, retry, alert user)
+
+    def encrypt_password(self, password):
+        pt('encrypting password')
+        if not self.cipher:
+            raise ValueError("Encryption is not enabled or cipher is not initialized.")
+        encrypted_password = self.cipher.encrypt(password.encode())
+        return encrypted_password.decode()
+
+    def decrypt_password(self, encrypted_password):
+        pt('decrypting password')
+        if not self.cipher:
+            raise ValueError("Encryption is not enabled or cipher is not initialized.")
+        try:
+            decrypted_password = self.cipher.decrypt(encrypted_password.encode())
+            return decrypted_password.decode()
+        except InvalidToken:
+            print("Failed to decrypt: Invalid token or key.")
+            return ""  # Return an empty string instead of None
+        except Exception as e:
+            print(f"Unexpected error during decryption: {e}")
+            return ""  # Return an empty string instead of None
+
+    def update_encryption_setting(self, enable_encryption):
+        pt('update encryption setting')
+        if enable_encryption and not self.cipher:
+            self.initialize_cipher()
+        elif not enable_encryption:
+            self.cipher = None
 
     def load_or_generate_key(self):
         pt('loading or generating key')
@@ -254,23 +297,17 @@ class PasswordManager:
                 key_file.write(base64.urlsafe_b64encode(self.key))
             self.cipher = Fernet(self.key)
 
-    def encrypt_password(self, password):
-        """Encrypt the password."""
-        pt('encrypting password')
-        
-        encrypted_password = self.cipher.encrypt(password.encode())
-        return encrypted_password.decode()
-
-    def decrypt_password(self, encrypted_password):
-        """Decrypt the password."""
-        pt('decrypting password')
+    def is_encrypted(self, data):
+        ## TODO, I'm not sure I like this way of validating if it's encrypted.
+        ## should I just use the variable? Or I can't because we are saving it now..
         
         try:
-            decrypted_password = self.cipher.decrypt(encrypted_password.encode())
-            return decrypted_password.decode()
-        except InvalidToken:
-            raise ValueError("Invalid encryption key or corruption in encrypted data")
-
+            # Attempt to decode the data from base64
+            decoded_data = base64.urlsafe_b64decode(data)
+            # Optionally, you could add more checks here to validate the decoded data
+            return True
+        except (ValueError, TypeError, base64.binascii.Error):
+            return False
     def validate_password(self, current_password):
         pt('validating password')
         
@@ -664,12 +701,13 @@ class SettingsDialog:
 
     def save_settings(self):
 
-        password = self.process_password()
 
         auto_lock_enabled = self.auto_lock_var.get()
         auto_lock_time = self.process_auto_lock_time()
 
         selected_positions = [pos for pos, var in self.position_checkboxes.items() if var.get()]
+        processed_password = self.process_password()
+        encryption = self.enable_encryption.get()
 
         new_settings = {
             'auto_lock_enabled': auto_lock_enabled,
@@ -683,8 +721,8 @@ class SettingsDialog:
             'size': int(self.size_entry.get()),
             'alpha': float(self.alpha_entry.get()),
             'background_color': self.bg_color_var.get(),
-            'password': password,
-            'enable_encryption': self.enable_encryption.get(),  # Use the BooleanVar to get the state
+            'password': processed_password,
+            'enable_encryption': encryption,  # Use the BooleanVar to get the state
         }
 
         settings_path = SettingsUtility.get_path()
@@ -711,21 +749,30 @@ class SettingsDialog:
         enable_encryption = self.enable_encryption.get()
 
         if new_password:
-            if new_password == confirm_password:
-                if self.password_manager.validate_password(current_password):
-                    # Encrypt the new password if encryption is enabled
-                    if enable_encryption:
-                        new_password = self.password_manager.encrypt_password(new_password)
-                    return new_password
-                else:
-                    messagebox.showerror("Error", "Current password is incorrect.")
-                    return None
-            else:
+            if new_password != confirm_password:
                 messagebox.showerror("Error", "New passwords do not match.")
                 return None
+            if not self.password_manager.validate_password(current_password):
+                messagebox.showerror("Error", "Current password is incorrect.")
+                return None
+            # Encrypt the new password if encryption is enabled
+            if enable_encryption:
+                if not self.password_manager.cipher:
+                    self.password_manager.initialize_cipher()
+                return self.password_manager.encrypt_password(new_password)
+            else:
+                return new_password
         else:
-            # If no new password is entered, return the current settings
-            return self.settings['password']
+            # No new password entered, return the existing one, potentially re-encrypting if settings changed
+            existing_password_encrypted = self.settings['password']
+            pt(existing_password_encrypted)
+            if enable_encryption:
+                pt(1)
+                if not self.password_manager.cipher:
+                    pt(2)
+                    self.password_manager.initialize_cipher()
+                return self.password_manager.encrypt_password(existing_password_encrypted)
+            return existing_password_encrypted
 
     def process_auto_lock_time(self):
         try:
