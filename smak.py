@@ -297,7 +297,7 @@ class SettingsDialog:
         
         self.password_manager = PasswordManager(SettingsUtility.get_path())
 
-        self.settings_window = tk.Toplevel(self.master)
+        self.settings_window = tk.Toplevel(self.master, )
         self.settings_window.title("SMAK Settings")
         self.label_section_font_size = 12
         
@@ -316,8 +316,7 @@ class SettingsDialog:
         self.load_settings()
         self.setup_window_contents()
         
-        ## Set DPI awareness (No longer necessary, but will be more seamless/integrated)
-        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+
 
     def close(self):
         ##  release the grab and destroy the window
@@ -325,6 +324,13 @@ class SettingsDialog:
         self.settings_window.destroy()
         if self.system_tray_app:
             self.system_tray_app.settings_win_inst = None
+
+    def update_radio_display_option(self):
+            """Enable or disable the custom message entry based on the selected radio button."""
+            if self.display_option_var.get() == 3:
+                self.custom_msg_entry.config(state='normal', bg='white')
+            else:
+                self.custom_msg_entry.config(state='disabled', bg='light grey')
 
     def get_screen_size(self):
         
@@ -337,22 +343,27 @@ class SettingsDialog:
         
         return width, height
 
-    def center_window(self):
+    def center_window(self, initial_centering=False):
         w, h = self.get_screen_size()
-        size = tuple(int(_) for _ in self.settings_window.geometry().split('+')[0].split('x'))
+        
+        if initial_centering:
+            size = (200, 600)
+        else:
+            size = tuple(int(_) for _ in self.settings_window.geometry().split('+')[0].split('x'))
+            
         x = (w // 2) - (size[0] // 2)
         y = (h // 2) - (size[1] // 2)
         self.settings_window.geometry("+{}+{}".format(x, y))
-        # pt(w,h,x,y)
-
-    def update_radio_display_option(self):
-            """Enable or disable the custom message entry based on the selected radio button."""
-            if self.display_option_var.get() == 3:
-                self.custom_msg_entry.config(state='normal', bg='white')
-            else:
-                self.custom_msg_entry.config(state='disabled', bg='light grey')
+        pt(size, w,h,x,y)
 
     def setup_window_contents(self):
+        ## Set a default size for the window
+        ## Center the window immediately after setting the size
+        ## Set DPI awareness (No longer necessary, but will be more seamless/integrated)
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        self.center_window(initial_centering=True)
+        # self.settings_window.update()
+        
         self.setup_auto_lock_section()
         self.setup_image_selection()
         self.setup_window_appearance()
