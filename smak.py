@@ -32,9 +32,7 @@ from PIL import Image
 
 ## TODO: Consider moving this into Password management, and just import if encryption
 ## is checked. 
-from Crypto.Cipher import AES
-from Crypto.Random import get_random_bytes
-from Crypto.Util.Padding import pad, unpad
+from cryptography.fernet import Fernet, InvalidToken
 import base64
 
 class SmakStopper:
@@ -195,55 +193,67 @@ class SmakStopper:
             self.on_close_callback() 
 
 
+
+
+
+
+
 class PasswordManager:
     def __init__(self, settings_path):
         self.settings_path = settings_path
         self.key_path = os.path.join(os.path.dirname(settings_path), 'secret.key')
-        self.load_or_generate_key()
+        self.settings = SettingsUtility.load_settings()
+        if self.settings.get('enable_encryption', False):
+            pt('encryption enabled.')
+            self.load_or_generate_key()
 
     def load_or_generate_key(self):
-        if os.path.exists(self.key_path):
-            with open(self.key_path, 'rb') as key_file:
-                self.key = key_file.read()
-        else:
-            self.key = get_random_bytes(16)  # AES key must be either 16, 24, or 32 bytes long
+        pt('loading or generating key')
+        
+        try:
+            if os.path.exists(self.key_path):
+                with open(self.key_path, 'rb') as key_file:
+                    key_data = key_file.read()
+                    self.key = base64.urlsafe_b64decode(key_data)
+                    self.cipher = Fernet(self.key)
+            else:
+                self.key = Fernet.generate_key()
+                with open(self.key_path, 'wb') as key_file:
+                    key_file.write(base64.urlsafe_b64encode(self.key))
+                self.cipher = Fernet(self.key)
+        except (ValueError, base64.binascii.Error) as e:
+            print(f"Error decoding the Fernet key: {e}. Generating a new key.")
+            self.key = Fernet.generate_key()
             with open(self.key_path, 'wb') as key_file:
-                key_file.write(self.key)
+                key_file.write(base64.urlsafe_b64encode(self.key))
+            self.cipher = Fernet(self.key)
 
     def encrypt_password(self, password):
         """Encrypt the password."""
-        cipher = AES.new(self.key, AES.MODE_CBC)
-        ct_bytes = cipher.encrypt(pad(password.encode(), AES.block_size))
-        iv = base64.b64encode(cipher.iv).decode('utf-8')
-        ct = base64.b64encode(ct_bytes).decode('utf-8')
-        return iv + ":" + ct
+        pt('encrypting password')
+        
+        encrypted_password = self.cipher.encrypt(password.encode())
+        return encrypted_password.decode()
 
     def decrypt_password(self, encrypted_password):
         """Decrypt the password."""
-        iv, ct = encrypted_password.split(':')
-        iv = base64.b64decode(iv)
-        ct = base64.b64decode(ct)
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        pt = unpad(cipher.decrypt(ct), AES.block_size)
-        return pt.decode()
+        pt('decrypting password')
+        
+        try:
+            decrypted_password = self.cipher.decrypt(encrypted_password.encode())
+            return decrypted_password.decode()
+        except InvalidToken:
+            raise ValueError("Invalid encryption key or corruption in encrypted data")
 
     def validate_password(self, current_password):
+        pt('validating password')
+        
         settings = self.load_settings()
         stored_encrypted_password = settings.get('password', None)
         if stored_encrypted_password:
             stored_password = self.decrypt_password(stored_encrypted_password)
             return stored_password == current_password
         return False
-    
-    # def load_settings(self):
-    #     try:
-    #         with open(self.settings_path, 'r') as file:
-    #             settings = json.load(file)
-    #         return settings
-    #     except FileNotFoundError:
-    #         return {}
-
-    #     return password 
 
 
 class SettingsUtility:
@@ -270,13 +280,18 @@ class SettingsUtility:
     @staticmethod
     def load_settings():
         settings_path = SettingsUtility.get_path()
-        try:
-            with open(settings_path, 'r') as file:
-                settings = json.load(file)
-                for key, value in SettingsUtility.default_settings().items():
-                    settings.setdefault(key, value)
-        except FileNotFoundError:
-            settings = SettingsUtility.default_settings()
+        
+        ## TODO DELETE THIS
+        settings = SettingsUtility.default_settings()
+
+        #TODO Temp commented out, for testing purposes
+        # try:
+        #     with open(settings_path, 'r') as file:
+        #         settings = json.load(file)
+        #         for key, value in SettingsUtility.default_settings().items():
+        #             settings.setdefault(key, value)
+        # except FileNotFoundError:
+        #     settings = SettingsUtility.default_settings()
 
         return settings
 
@@ -303,15 +318,14 @@ class SettingsDialog:
         
         ## This makes the window a tool window which removes the maximize and minimize buttons
         self.settings_window.attributes('-toolwindow', True)
-        self.display_option_var = tk.IntVar(value=3)  ## Default to 'Show custom message'
-        
-        # Initialize enable_encryption as a BooleanVar instead of a boolean
-        self.enable_encryption = tk.BooleanVar(value=False)
         
         ## Set the window as modal and focus
         self.settings_window.transient(None)
         self.settings_window.grab_set()  ## Modal
         self.settings_window.focus_set()
+        
+        self.display_option_var = tk.IntVar(value=3)  ## Default to 'Show custom message'
+        self.enable_encryption = tk.BooleanVar(value=False)
         
         self.load_settings()
         self.setup_window_contents()
@@ -343,17 +357,15 @@ class SettingsDialog:
         
         return width, height
 
-    def center_window(self, initial_centering=False):
+    def center_window(self):
         w, h = self.get_screen_size()
         
-        if initial_centering:
-            size = (200, 600)
-        else:
-            size = tuple(int(_) for _ in self.settings_window.geometry().split('+')[0].split('x'))
-            
+        size = tuple(int(_) for _ in self.settings_window.geometry().split('+')[0].split('x'))
         x = (w // 2) - (size[0] // 2)
         y = (h // 2) - (size[1] // 2)
+        
         self.settings_window.geometry("+{}+{}".format(x, y))
+        
         pt(size, w,h,x,y)
 
     def setup_window_contents(self):
@@ -694,8 +706,7 @@ class SettingsDialog:
                 return None
         else:
             # If no new password is entered, return the current settings
-            return self.settings['password'], self.settings['enable_encryption']
-
+            return self.settings['password']
 
     def process_auto_lock_time(self):
         try:
