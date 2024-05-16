@@ -248,7 +248,7 @@ class PasswordManager:
     def validate_password(self, current_password):
         pt('validating password')
         
-        settings = self.load_settings()
+        settings = SettingsUtility.load_settings()
         stored_encrypted_password = settings.get('password', None)
         if stored_encrypted_password:
             stored_password = self.decrypt_password(stored_encrypted_password)
@@ -282,16 +282,16 @@ class SettingsUtility:
         settings_path = SettingsUtility.get_path()
         
         ## TODO DELETE THIS
-        settings = SettingsUtility.default_settings()
+        # settings = SettingsUtility.default_settings()
 
-        #TODO Temp commented out, for testing purposes
-        # try:
-        #     with open(settings_path, 'r') as file:
-        #         settings = json.load(file)
-        #         for key, value in SettingsUtility.default_settings().items():
-        #             settings.setdefault(key, value)
-        # except FileNotFoundError:
-        #     settings = SettingsUtility.default_settings()
+        #TDODO TEMP Temp commented out, for testing purposes
+        try:
+            with open(settings_path, 'r') as file:
+                settings = json.load(file)
+                for key, value in SettingsUtility.default_settings().items():
+                    settings.setdefault(key, value)
+        except FileNotFoundError:
+            settings = SettingsUtility.default_settings()
 
         return settings
 
@@ -366,7 +366,7 @@ class SettingsDialog:
         
         self.settings_window.geometry("+{}+{}".format(x, y))
         
-        pt(size, w,h,x,y)
+        # pt(size, w,h,x,y)
 
     def setup_window_contents(self):
         
@@ -601,13 +601,6 @@ class SettingsDialog:
             variable=self.enable_encryption  # Associate the BooleanVar with the Checkbutton
         )
         self.enable_encryption_checkbox.pack(side=tk.TOP, anchor='center')
-        ...
-        # self.enable_encryption_checkbox = tk.Checkbutton(
-        #     encryption_frame,
-        #     text="Encrypt Password", 
-        #     variable=self.enable_encryption
-        # )
-        # self.enable_encryption_checkbox.pack(side=tk.TOP, anchor='center')
 
     def toggle_password_visibility(self, entry_widget, toggle_var):
         if toggle_var.get():
