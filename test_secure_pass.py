@@ -11,15 +11,25 @@ import bcrypt
 import os
 import base64
 
+len_salt = 16
+cpu_cost = 2**14
+block_size = 8
+parallelism = 1
+
+len_salt = 32
+cpu_cost = 2
+block_size = 4
+parallelism = 1
+
 def derive_key(password):
     """ Derive a key from a password using Scrypt """
     salt = os.urandom(16)  # Generate a new salt
     kdf = Scrypt(
         salt=salt,
-        length=32,
-        n=2**14,
-        r=8,
-        p=1,
+        length=len_salt,
+        n=cpu_cost,
+        r=block_size,
+        p=parallelism,
         backend=default_backend()
     )
     key = kdf.derive(password)
@@ -47,10 +57,10 @@ def derive_key_from_password_and_salt(password, salt):
     """ Re-derive the key from the password and salt """
     kdf = Scrypt(
         salt=salt,
-        length=32,
-        n=2**14,
-        r=8,
-        p=1,
+        length=len_salt,
+        n=cpu_cost,
+        r=block_size,
+        p=parallelism,
         backend=default_backend()
     )
     key = kdf.derive(password)

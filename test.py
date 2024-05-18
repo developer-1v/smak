@@ -1,5 +1,20 @@
 from print_tricks import pt
 
+def run_tests():
+    ...
+    # basic_encrypt_decrypt(b"Hello, World!")
+    # password_encrypt_decrypt(b"mysecretpassword", b"Secret data")
+    # dpapi_encrypt_decrypt(b"Data to encrypt")
+    # challenge_response_test()
+    # password_hashing_test()
+    # password_hashing_test_with_more_secure_storage()
+    # password_hashing_test_with_encrypted_file_storage()
+    # password_hashing_test_with_encrypted_file_storage_and_derived_key()
+    # convert_to_ico('assets/icon.png', 'assets/icon.ico')
+    # convert_images_to_ico()
+    # profile_memory_test()
+    
+    
 '''
 Minimal Cryptography
 '''
@@ -19,7 +34,7 @@ def basic_encrypt_decrypt(data):
     decrypted_data = cipher_suite.decrypt(cipher_data)
     print("Decrypted:", decrypted_data)
 
-basic_encrypt_decrypt(b"Hello, World!")
+# basic_encrypt_decrypt(b"Hello, World!")
 
 ''' 
 Cryptography with password 
@@ -67,7 +82,7 @@ def password_encrypt_decrypt(password: bytes, data: bytes):
     decrypted = fernet_key2.decrypt(encrypted)
     print("Decrypted:", decrypted)
 
-password_encrypt_decrypt(b"mysecretpassword", b"Secret data")
+# password_encrypt_decrypt(b"mysecretpassword", b"Secret data")
 
 '''
 Cryptography with Secured Key
@@ -121,16 +136,19 @@ def verify_response(challenge, client_response, password):
     expected_response = generate_response(challenge, password)
     return hmac.compare_digest(expected_response, client_response)
 
-# Server side
-challenge = generate_challenge()
+def challenge_response_test():
+    # Server side
+    challenge = generate_challenge()
 
-# Client side
-password = b"mysecretpassword"
-response = generate_response(challenge, password)
+    # Client side
+    password = b"mysecretpassword"
+    response = generate_response(challenge, password)
+    # Server side verification
+    is_valid = verify_response(challenge, response, password)
+    print("Password is valid:", is_valid)
+    
+# challenge_response_test()
 
-# Server side verification
-is_valid = verify_response(challenge, response, password)
-print("Password is valid:", is_valid)
 
 
 '''
@@ -156,11 +174,12 @@ def verify_password(stored_hash, password_to_check):
 def some_function():
     print("Function is now running.")
 
-# Example usage
-password = b"mysecretpassword"
-hashed_password = hash_password(password)
-verify_password(hashed_password, password)
-
+def password_hashing_test():
+    # Example usage
+    password = b"mysecretpassword"
+    hashed_password = hash_password(password)
+    # verify_password(hashed_password, password)
+# password_hashing_test()
 
 '''
 password hashing with more secure storage
@@ -194,14 +213,18 @@ def verify_password(file_path, password_to_check):
     else:
         print("Incorrect password.")
 
-# Example usage
-password = b"mysecretpassword"
-hashed_password = hash_password(password)
-file_path = 'path_to_secure_storage/password_hash.bin'
-store_hashed_password(hashed_password, file_path)
-pt.t()
-verify_password(file_path, password)
-pt.t()
+def password_hashing_test_with_more_secure_storage():
+
+    # Example usage
+    password = b"mysecretpassword"
+    hashed_password = hash_password(password)
+    file_path = 'path_to_secure_storage/password_hash.bin'
+    store_hashed_password(hashed_password, file_path)
+    pt.t()
+    verify_password(file_path, password)
+    pt.t()
+
+# password_hashing_test_with_more_secure_storage()
 
 '''
 password hashing with encrypted file storage
@@ -246,13 +269,15 @@ def verify_password(file_path, password_to_check):
     else:
         print("Incorrect password.")
 
-# Example usage
-password = b"mysecretpassword"
-hashed_password = hash_password(password)
-file_path = 'path_to_secure_storage/password_hash.bin'
-store_hashed_password(hashed_password, file_path)
-verify_password(file_path, password)
+def password_hashing_test_with_encrypted_file_storage():
+    # Example usage
+    password = b"mysecretpassword"
+    hashed_password = hash_password(password)
+    file_path = 'path_to_secure_storage/password_hash.bin'
+    store_hashed_password(hashed_password, file_path)
+    verify_password(file_path, password)
 
+# password_hashing_test_with_encrypted_file_storage()   
 
 '''
 password hashing with encrypted file storage & derived key (no storage)
@@ -337,15 +362,17 @@ def verify_password(file_path, password_to_check):
 def perform_actions():
     print("Performing actions...")
 
-# Example usage
-password = b"mysecretpassword"
-hashed_password, salt = hash_password(password)
-file_path = 'path_to_secure_storage/password_hash.bin'
-store_hashed_password(hashed_password, salt, file_path)
-pt.t(3)
-verify_password(file_path, password)
-pt.t(3)
+def password_hashing_test_with_encrypted_file_storage_and_derived_key():
+    # Example usage
+    password = b"mysecretpassword"
+    hashed_password, salt = hash_password(password)
+    file_path = 'path_to_secure_storage/password_hash.bin'
+    store_hashed_password(hashed_password, salt, file_path)
+    pt.t(3)
+    verify_password(file_path, password)
+    pt.t(3)
 
+# password_hashing_test_with_encrypted_file_storage_and_derived_key()
 
 '''
 Convert image to .ico icon
@@ -353,35 +380,41 @@ Convert image to .ico icon
 '''
 pt.c('-----------')
 
-# import os
-# from PIL import Image
-# import sys
+import os
+from PIL import Image
+import sys
 
-# def convert_to_ico(input_path, output_path, sizes=[(64, 64)]):
-#     """
-#     Convert an image to ICO format.
+def convert_to_ico(input_path, output_path, sizes=[(64, 64)]):
+    """
+    Convert an image to ICO format.
     
-#     Args:
-#     input_path (str): The path to the input image file.
-#     output_path (str): The path where the .ico file will be saved.
-#     sizes (list): A list of tuple sizes for the icon.
-#     """
-#     with Image.open(input_path) as img:
-#         img.save(output_path, format='ICO', sizes=sizes)
+    Args:
+    input_path (str): The path to the input image file.
+    output_path (str): The path where the .ico file will be saved.
+    sizes (list): A list of tuple sizes for the icon.
+    """
+    with Image.open(input_path) as img:
+        img.save(output_path, format='ICO', sizes=sizes)
+# convert_images_to_ico()
 
-# if __name__ == "__main__":
-#     # Get the directory of the current script
-#     dir_path = os.path.dirname(os.path.realpath(__file__))
-#     assets_dir = os.path.join(dir_path, 'assets')
 
-#     # Loop through all files in the assets directory
-#     for file_name in os.listdir(assets_dir):
-#         if file_name.endswith('.png'):
-#             input_image = os.path.join(assets_dir, file_name)
-#             output_ico = os.path.join(assets_dir, file_name.replace('.png', '.ico'))
+'''
+Convert multiple images to .ico icon
+
+'''
+def convert_images_to_ico():    # Get the directory of the current script
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    assets_dir = os.path.join(dir_path, 'assets')
+
+    # Loop through all files in the assets directory
+    for file_name in os.listdir(assets_dir):
+        if file_name.endswith('.png'):
+            input_image = os.path.join(assets_dir, file_name)
+            output_ico = os.path.join(assets_dir, file_name.replace('.png', '.ico'))
             
-#             convert_to_ico(input_image, output_ico)
-
+            convert_to_ico(input_image, output_ico)
+# convert_images_to_ico()
+            
 
 '''
 Profile memory of import statements
@@ -389,22 +422,24 @@ Profile memory of import statements
 '''
 pt.c('-----------')
 
-# from memory_profiler import profile
+from memory_profiler import profile
 
-# @profile
-# def import_modules():
-#     from print_tricks import pt
+@profile
+def import_modules():
+    from print_tricks import pt
     
-#     import json, ctypes, threading, sys, os, time
-#     import tkinter as tk
-#     from tkinter import font, messagebox
-#     from pynput import keyboard, mouse
-#     from pystray import MenuItem as item, Icon, Menu, MenuItem
-#     from PIL import Image
+    import json, ctypes, threading, sys, os, time
+    import tkinter as tk
+    from tkinter import font, messagebox
+    from pynput import keyboard, mouse
+    from pystray import MenuItem as item, Icon, Menu, MenuItem
+    from PIL import Image
 
-# # Call the function to execute the imports and profile them
-# import_modules()
+def profile_memory_test():
+    import_modules()
 
-# '''
-# python -m memory_profiler test.py
-# '''
+    # '''
+    # python -m memory_profiler test.py
+    # '''
+    
+# profile_memory_test()

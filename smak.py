@@ -16,6 +16,13 @@
         - give the pypi and the github the picture, an icon. 
         
 
+    CUSTOM Images:
+    - Convert any user image to an icon file, and update it. 
+    - Optional different icon if its locked. 
+    
+    Custom EXE name & tooltip:
+    - Optional: change the name of the exe, and add a tooltip. 
+        
     '''
 
 
