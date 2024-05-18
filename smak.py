@@ -162,22 +162,32 @@ class SmakStopper:
             self.listener = None
 
     def on_press(self, key):
-        ## TODO: Remove this after testing
-        self.on_press_development(key)
-        
-        ## keep this
-        self.on_press_production(key)
-        
+        try:
+            ## TODO: Remove this after testing
+            self.on_press_development(key)
+            
+            ## keep this
+            self.on_press_production(key)
+        except Exception as e:
+            pt(e)
+            self.close()
+            
     def on_press_development(self, key):
         pt()
         if hasattr(key, 'char') and key.char == '1':
             ## TODO: Temporary destroy for testing. 
-            self.close()    
+            self.close()
             
+        if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
+            self.close()
+        
     def on_press_production(self, key):
         pt()
-        if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
-            return
+        
+        ## TODO: Enable this section for production
+        # if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
+        #     return
+        ##########
 
         if hasattr(key, 'char') and key.char:
             key_value = key.char
@@ -999,21 +1009,36 @@ def setup_tray_icon(window_manager):
     window_manager.tray_icon = icon  ## Store the icon in the WindowManager
     icon.run()
 
-
-if __name__ == "__main__":
+def main():
     root = tk.Tk()
     main_loop = MainTKLoop(root)
     manager = WindowManager(root)
     
     systray = True
-    if systray:
-        icon_thread = threading.Thread(
-            target=setup_tray_icon,
-            args=(manager,),
-            daemon=True)
-        icon_thread.start()
-    
-    main_loop.run()
+    icon_thread = None
+    try:
+        if systray:
+            icon_thread = threading.Thread(
+                target=setup_tray_icon,
+                args=(manager,),
+                daemon=True)
+            icon_thread.start()
+        
+        main_loop.run()
+    except Exception as e:
+        pt(e)
+        # Stop the system tray icon if it's running
+        if manager.tray_icon:
+            manager.tray_icon.stop()
+        # Stop the Tkinter main loop
+        root.quit()
+        # Wait for the icon thread to finish if it was started
+        if icon_thread:
+            icon_thread.join()
+        sys.exit()
+
+if __name__ == "__main__":
+    main()
 
 
 
