@@ -1027,12 +1027,18 @@ def main():
         main_loop.run()
     except Exception as e:
         pt(e)
-        # Stop the system tray icon if it's running
+        ######################################################
+        ## Stop the threads if there is a failure: 
+        ######################################################
+        
+        ## STOP Tray Icon GUI
         if manager.tray_icon:
             manager.tray_icon.stop()
-        # Stop the Tkinter main loop
+            
+        ## STOP Tkinter main loop
         root.quit()
-        # Wait for the icon thread to finish if it was started
+        
+        ## Wait for the icon thread to finish
         if icon_thread:
             icon_thread.join()
         sys.exit()
