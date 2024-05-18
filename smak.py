@@ -173,7 +173,7 @@ class SmakStopper:
             self.close()
             
     def on_press_development(self, key):
-        pt()
+
         if hasattr(key, 'char') and key.char == '1':
             ## TODO: Temporary destroy for testing. 
             self.close()
@@ -182,7 +182,6 @@ class SmakStopper:
             self.close()
         
     def on_press_production(self, key):
-        pt()
         
         ## TODO: Enable this section for production
         # if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
@@ -198,7 +197,8 @@ class SmakStopper:
         self.typed_keys.append(key_value)
         # Ensure we only check the last 'n' characters where 'n' is the length of the encrypted password
         encrypted_password_length = len(''.join(self.password))  # Assuming self.password is the encrypted password
-
+        pt(self.password)
+        
         if len(self.typed_keys) >= encrypted_password_length:
             self.typed_keys = self.typed_keys[-encrypted_password_length:]
 
