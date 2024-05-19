@@ -1,5 +1,16 @@
 '''
 password hashing with encrypted file storage & derived key (no storage)
+
+TODO:
+    - Derive Key:
+        - Sha256: Can check every single new character of a string and on all
+        existing characters, because its check is within microseconds. 
+        - HKDF / Scrypt: So much slower. Strats below:
+            - Look for periods of no keys of 3 seconds on the front end,
+            and after every single key on the back end (only takes 
+            50-300ms so can check pretty rapidly)
+                - Consider threading?
+
 '''
 from print_tricks import pt
 
