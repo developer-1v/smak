@@ -10,6 +10,8 @@ TODO:
             and after every single key on the back end (only takes 
             50-300ms so can check pretty rapidly)
                 - Consider threading?
+            - Alternately, hit enter key to reset the check and start typing
+            
 
 '''
 from print_tricks import pt

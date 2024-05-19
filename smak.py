@@ -1,7 +1,5 @@
 '''TODO
-    Encrypted Passwords:
-        - Experiment with an actual encrypted system
-    
+
     EXE
         - Make this into an optional exe. 
     
@@ -22,6 +20,9 @@
     
     Custom EXE name & tooltip:
     - Optional: change the name of the exe, and add a tooltip. 
+    
+    Chosen Encryption Methods:
+        sha256, hkdf, scrypt, bcrypt
 
     '''
 
