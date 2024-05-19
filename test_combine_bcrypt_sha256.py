@@ -60,12 +60,14 @@ class PasswordManager:
         elif self.key_method == 'bcrypt':
             if salt is None:
                 salt = bcrypt.gensalt()
+            elif isinstance(salt, str):
+                salt = salt.encode('utf-8')
             elif not isinstance(salt, bytes):
-                salt = salt.encode('utf-8')  # Ensure salt is bytes, might need more specific handling depending on how salt is stored or passed
+                salt = bcrypt.gensalt()
+
             hashed_password = bcrypt.hashpw(password_bytes, salt)
-            # Rehash the bcrypt output with SHA256 to ensure it's the correct length and format
-            rehashed_password = hashlib.sha256(hashed_password).digest()
-            return base64.urlsafe_b64encode(rehashed_password), salt
+            return base64.urlsafe_b64encode(hashed_password), salt
+
 
         key = kdf.derive(password_bytes)
         return base64.urlsafe_b64encode(key), salt

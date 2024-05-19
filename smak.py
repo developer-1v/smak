@@ -22,7 +22,13 @@
     - Optional: change the name of the exe, and add a tooltip. 
     
     Chosen Encryption Methods:
-        sha256, hkdf, scrypt, bcrypt
+        - sha256, hkdf, scrypt, bcrypt
+        
+    Storing Key/salt in environment variable. 
+    - Can I automate/python this? 
+    - Do they need admin permissions?
+        - If so, we can ask for admin permissions only if they select that 
+        as an option. 
 
     '''
 
