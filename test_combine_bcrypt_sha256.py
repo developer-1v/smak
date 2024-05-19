@@ -129,6 +129,8 @@ class PasswordManager:
 if __name__ == '__main__':
     derive_methods = ['sha256', 'hkdf', 'scrypt', 'bcrypt']
     for method in derive_methods:
+        pt(method)
+        
         password_manager = PasswordManager(method=method)
         password = b"mysecretpassword"
         hashed_password, salt = password_manager.hash_password(password)
