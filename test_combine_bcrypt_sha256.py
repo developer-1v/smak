@@ -36,6 +36,11 @@ class PasswordManager:
             password_bytes = password
         else:
             password_bytes = password.encode('utf-8')
+
+        if self.key_method == 'sha256':
+            salted_password = salt + password_bytes
+            hashed_password = hashlib.sha256(salted_password).digest()
+            return base64.urlsafe_b64encode(hashed_password), salt
         
         if self.key_method == 'hkdf':
             kdf = HKDF(
@@ -54,10 +59,6 @@ class PasswordManager:
                 p=self.parallelism,
                 backend=default_backend()
             )
-        elif self.key_method == 'sha256':
-            salted_password = salt + password_bytes
-            hashed_password = hashlib.sha256(salted_password).digest()
-            return base64.urlsafe_b64encode(hashed_password), salt
         elif self.key_method == 'bcrypt':
             kdf = Scrypt(
                 salt=salt,
@@ -67,8 +68,6 @@ class PasswordManager:
                 p=self.parallelism,
                 backend=default_backend()
             )
-            key = kdf.derive(password)
-            return base64.urlsafe_b64encode(key), salt
         
         key = kdf.derive(password_bytes)
         return base64.urlsafe_b64encode(key), salt
@@ -79,10 +78,7 @@ class PasswordManager:
             pt('salt is bytes')
             salt = salt.hex()
             
-        if self.key_method == 'bcrypt':
-            encrypted_hash_salt, encryption_salt = self.encrypt_data(hashed_password + salt, b'encryption_key')
-        else:
-            encrypted_hash_salt, encryption_salt = self.encrypt_data(hashed_password + bytes.fromhex(salt), b'encryption_key')
+        encrypted_hash_salt, encryption_salt = self.encrypt_data(hashed_password + bytes.fromhex(salt), b'encryption_key')
         
         with open(file_path, 'wb') as f:
             f.write(encryption_salt + encrypted_hash_salt)
@@ -93,7 +89,13 @@ class PasswordManager:
         encryption_salt = data[:16]
         encrypted_hash_salt = data[16:]
         decrypted_hash_salt = self.decrypt_data(encrypted_hash_salt, b'encryption_key', encryption_salt)
+        
+        # if self.key_method == 'bcrypt':
+        #     correct_hash = decrypted_hash_salt.split(b'$2b$')[1]
+        #     correct_hash = b'$2b$' + correct_hash
+        # else:
         correct_hash = decrypted_hash_salt[:-len(encryption_salt)]
+        
         return correct_hash, decrypted_hash_salt[-len(encryption_salt):].hex()
     
     def hash_password(self, password, salt=None):
