@@ -21,9 +21,10 @@ cpu_cost = 2
 block_size = 4
 parallelism = 1
 
-def derive_key(password):
-    """ Derive a key from a password using Scrypt """
-    salt = os.urandom(16)  # Generate a new salt
+def derive_key(password, salt=None):
+    """ Derive a key from a password using Scrypt, optionally using a provided salt """
+    if salt is None:
+        salt = os.urandom(16)  # Generate a new salt if not provided
     kdf = Scrypt(
         salt=salt,
         length=len_salt,
@@ -49,22 +50,11 @@ def encrypt_data(data, password):
     return encrypted_data, salt
 
 def decrypt_data(encrypted_data, password, salt):
-    key = derive_key_from_password_and_salt(password, salt)
+    key, _ = derive_key(password, salt)  # Unpack the tuple to get only the key
     cipher_suite = Fernet(key)
     return cipher_suite.decrypt(encrypted_data)
 
-def derive_key_from_password_and_salt(password, salt):
-    """ Re-derive the key from the password and salt """
-    kdf = Scrypt(
-        salt=salt,
-        length=len_salt,
-        n=cpu_cost,
-        r=block_size,
-        p=parallelism,
-        backend=default_backend()
-    )
-    key = kdf.derive(password)
-    return base64.urlsafe_b64encode(key)
+
 
 def hash_password(password):
     salt = bcrypt.gensalt()
