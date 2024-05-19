@@ -49,18 +49,6 @@ def derive_key(password, salt):
     key = kdf.derive(password)
     return base64.urlsafe_b64encode(key), salt
 
-def derive_key_from_password_and_salt(password, salt):
-    """ Re-derive the key from the password and salt """
-    kdf = Scrypt(
-        salt=salt,
-        length=len_salt,
-        n=cpu_cost,
-        r=block_size,
-        p=parallelism,
-        backend=default_backend()
-    )
-    key = kdf.derive(password)
-    return base64.urlsafe_b64encode(key)
 
 
 def store_hashed_password(hashed_password, salt, file_path):
@@ -89,17 +77,8 @@ def hash_password(password, salt=None):
     if isinstance(password, str):
         password = password.encode('utf-8')
 
-    kdf = Scrypt(
-        salt=salt,
-        length=len_salt,
-        n=cpu_cost,
-        r=block_size,
-        p=parallelism,
-        backend=default_backend()
-    )
-    hashed = kdf.derive(password)
-    encoded_hashed = base64.urlsafe_b64encode(hashed)
-    return encoded_hashed, salt.hex()  
+    key, _ = derive_key(password, salt)
+    return key, salt.hex()
 
 def verify_password(file_path, password_to_check):
     stored_hash, stored_salt = load_hashed_password(file_path)
