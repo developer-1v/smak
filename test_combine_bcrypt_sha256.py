@@ -75,7 +75,7 @@ class PasswordManager:
     def store_hashed_password(self, hashed_password, salt, file_path):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         if isinstance(salt, bytes):
-            pt('salt is bytes')
+            # pt('salt is bytes')
             salt = salt.hex()
             
         encrypted_hash_salt, encryption_salt = self.encrypt_data(hashed_password + bytes.fromhex(salt), b'encryption_key')
@@ -112,9 +112,7 @@ class PasswordManager:
             password = bcrypt.hashpw(password, hashing_salt)
 
 
-        pt.t()
         key, salt_hex = self.derive_key(password, hashing_salt)
-        pt.t()
         return key, salt_hex
 
     def verify_password(self, file_path, password_to_check):
@@ -144,13 +142,12 @@ class PasswordManager:
 if __name__ == '__main__':
     derive_methods = ['sha256', 'hkdf', 'scrypt', 'bcrypt']
     for method in derive_methods:
-        pt(method)
         
         password_manager = PasswordManager(method=method)
         password = b"mysecretpassword"
         hashed_password, salt = password_manager.hash_password(password)
         file_path = 'path_to_secure_storage/password_hash.bin'
         password_manager.store_hashed_password(hashed_password, salt, file_path)
-        pt.c('------START---------')
+        pt.t(method)
         password_manager.verify_password(file_path, password)
-        pt.c('---------------')
+        pt.t(method)
