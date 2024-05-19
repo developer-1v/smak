@@ -3,22 +3,35 @@ from print_tricks import pt
 def run_tests():
     ...
     # basic_encrypt_decrypt(b"Hello, World!")
+    pt.c('-----------')
     # password_encrypt_decrypt(b"mysecretpassword", b"Secret data")
+    pt.c('-----------')
     # dpapi_encrypt_decrypt(b"Data to encrypt")
+    pt.c('-----------')
     # challenge_response_test()
+    pt.c('-----------')
     # password_hashing_test()
+    pt.c('-----------')
     # password_hashing_test_with_more_secure_storage()
+    pt.c('-----------')
     # password_hashing_test_with_encrypted_file_storage()
+    pt.c('-----------')
     # password_hashing_test_with_encrypted_file_storage_and_derived_key()
+    pt.c('-----------')
     # convert_to_ico('assets/icon.png', 'assets/icon.ico')
+    pt.c('-----------')
     # convert_images_to_ico()
+    pt.c('-----------')
     # profile_memory_test()
-    
-    
+    pt.c('-----------')
+    password_hashing_test_sha256()
+    pt.c('-----------')
+    password_hashing_w_salt_test_sha256()
+    pt.c('-----------')
 '''
 Minimal Cryptography
 '''
-pt.c('-----------')
+
 from cryptography.fernet import Fernet
 
 def basic_encrypt_decrypt(data):
@@ -39,7 +52,7 @@ def basic_encrypt_decrypt(data):
 ''' 
 Cryptography with password 
 '''
-pt.c('-----------')
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.fernet import Fernet
@@ -87,7 +100,7 @@ def password_encrypt_decrypt(password: bytes, data: bytes):
 '''
 Cryptography with Secured Key
 '''
-pt.c('-----------')
+
 from cryptography.fernet import Fernet
 import os
 from win32crypt import CryptProtectData, CryptUnprotectData
@@ -118,7 +131,7 @@ def dpapi_encrypt_decrypt(data: bytes):
 
 
 ''' Challenge-response protocol '''
-pt.c('-----------')
+
 import hmac
 import os
 import hashlib
@@ -154,7 +167,7 @@ def challenge_response_test():
 '''
 password hashing
 '''
-pt.c('-----------')
+
 import bcrypt
 
 def hash_password(password):
@@ -179,12 +192,13 @@ def password_hashing_test():
     password = b"mysecretpassword"
     hashed_password = hash_password(password)
     # verify_password(hashed_password, password)
+    
 # password_hashing_test()
 
 '''
 password hashing with more secure storage
 '''
-pt.c('-----------')
+
 import bcrypt
 import os
 
@@ -229,7 +243,7 @@ def password_hashing_test_with_more_secure_storage():
 '''
 password hashing with encrypted file storage
 '''
-pt.c('-----------')
+
 
 from cryptography.fernet import Fernet
 import bcrypt
@@ -282,7 +296,7 @@ def password_hashing_test_with_encrypted_file_storage():
 '''
 password hashing with encrypted file storage & derived key (no storage)
 '''
-pt.c('-----------')
+
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.backends import default_backend
 from cryptography.fernet import Fernet
@@ -374,11 +388,101 @@ def password_hashing_test_with_encrypted_file_storage_and_derived_key():
 
 # password_hashing_test_with_encrypted_file_storage_and_derived_key()
 
+
+
+'''
+password hashing with SHA-256
+'''
+
+import hashlib
+
+def hash_password1_sha256(password):
+    """ Hash a password using SHA-256. """
+    if isinstance(password, str):
+        password = password.encode('utf-8')
+    hashed = hashlib.sha256(password).hexdigest()
+    return hashed.encode('utf-8')
+
+def verify_password_sha256(stored_hash, password_to_check):
+    """ Check that an unhashed password matches one that has been hashed with SHA-256 """
+    if isinstance(password_to_check, str):
+        password_to_check = password_to_check.encode('utf-8')
+    hashed_check = hashlib.sha256(password_to_check).hexdigest().encode('utf-8')
+    if hashed_check == stored_hash:
+        print("Password is correct. Executing function.")
+        some_function()
+    else:
+        print("Incorrect password.")
+
+def some_function():
+    print("Function is now running.")
+
+def password_hashing_test_sha256():
+    password = "mysecretpassword"
+    hashed_password = hash_password1_sha256(password)
+    pt.t()
+    verify_password_sha256(hashed_password, password)
+    pt.t()
+
+# password_hashing_test_sha256()
+
+
+'''
+password hashing with SHA-256 and salting
+'''
+
+import hashlib
+import os
+
+def hash_password2_sha256(password):
+    """ Hash a password using SHA-256 with a salt. """
+    # Generate a random salt
+    salt = os.urandom(16)
+    # Ensure the password is a bytes object
+    if isinstance(password, str):
+        password = password.encode('utf-8')
+    # Combine the salt and password
+    salted_password = salt + password
+    # Hash the salted password
+    hashed = hashlib.sha256(salted_password).hexdigest()
+    # Return the salt and the hashed password
+    return salt, hashed.encode('utf-8')
+
+def verify_password2_sha256(stored_salt, stored_hash, password_to_check):
+    """ Check that an unhashed password matches one that has been hashed with SHA-256 """
+    if isinstance(password_to_check, str):
+        password_to_check = password_to_check.encode('utf-8')
+    # Combine the salt and the password to check
+    salted_password_to_check = stored_salt + password_to_check
+    # Hash the salted password to check
+    hashed_check = hashlib.sha256(salted_password_to_check).hexdigest().encode('utf-8')
+    if hashed_check == stored_hash:
+        print("Password is correct. Executing function.")
+        some_function()
+    else:
+        print("Incorrect password.")
+
+def some_function():
+    print("Function is now running.")
+
+def password_hashing_w_salt_test_sha256():
+    password = "mysecretpassword"
+    salt, hashed_password = hash_password2_sha256(password)
+    pt.t()
+    verify_password2_sha256(salt, hashed_password, password)
+    pt.t()
+
+# password_hashing_w_salt_test_sha256()
+
+
+
+
+
 '''
 Convert image to .ico icon
 
 '''
-pt.c('-----------')
+
 
 import os
 from PIL import Image
@@ -420,7 +524,7 @@ def convert_images_to_ico():    # Get the directory of the current script
 Profile memory of import statements
 
 '''
-pt.c('-----------')
+
 
 from memory_profiler import profile
 
@@ -443,3 +547,8 @@ def profile_memory_test():
     # '''
     
 # profile_memory_test()
+
+
+if __name__ == "__main__":
+    run_tests()
+

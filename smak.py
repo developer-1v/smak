@@ -22,7 +22,7 @@
     
     Custom EXE name & tooltip:
     - Optional: change the name of the exe, and add a tooltip. 
-        
+
     '''
 
 
@@ -34,13 +34,14 @@ from tkinter import font, messagebox, PhotoImage
 from pynput import keyboard, mouse
 from pynput.keyboard import Key, Controller
 
-from pystray import MenuItem as item, Icon, Menu, MenuItem
+from pystray import Icon, Menu, MenuItem
 from PIL import Image
 
 ## TODO: Consider moving this into Password management, and just import if encryption
 ## is checked. 
 from cryptography.fernet import Fernet, InvalidToken
 import base64
+
 
 class SmakStopper:
     positions = [
@@ -239,12 +240,6 @@ class SmakStopper:
         if self.on_close_callback:
             self.on_close_callback() 
 
-
-
-
-
-
-
 class PasswordManager:
     def __init__(self, settings_path):
         self.settings_path = settings_path
@@ -336,7 +331,6 @@ class PasswordManager:
         except Exception as e:
             print(f"Error initializing cipher: {e}")
             # Handle error (e.g., log, retry, alert user)
-
 
     def update_encryption_setting(self, enable_encryption):
         pt('update encryption setting')
@@ -1054,6 +1048,8 @@ if __name__ == "__main__":
     main()
 
 
-
+'''
+I would like to replace the password manager class. I want 2 types of password systems. One that uses Sha256 and one that uses Bcrypt. Instead of the settings for "is_encrypted", we will use "is_sha256_psw" and "is_bcrypt_psw". And change any other variables as needed. So I want two different password management classes, depending on which encryption method is used. Also, instead of the "use encryption" checkbox, it should be radio buttons that say "Sha256 (faster)" and "bcrypt (more secure)", and under a label called "encryption methods". 
+'''
 
 
