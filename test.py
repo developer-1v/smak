@@ -420,9 +420,9 @@ def some_function():
 def password_hashing_test_sha256():
     password = "mysecretpassword"
     hashed_password = hash_password1_sha256(password)
-    pt.t()
+    pt.t('password hashing test sha256')
     verify_password_sha256(hashed_password, password)
-    pt.t()
+    pt.t('password hashing test sha256')
 
 # password_hashing_test_sha256()
 
@@ -468,9 +468,9 @@ def some_function():
 def password_hashing_w_salt_test_sha256():
     password = "mysecretpassword"
     salt, hashed_password = hash_password2_sha256(password)
-    pt.t()
+    pt.t('password hashing w/ salt Sha256')
     verify_password2_sha256(salt, hashed_password, password)
-    pt.t()
+    pt.t('password hashing w/ salt Sha256')
 
 # password_hashing_w_salt_test_sha256()
 

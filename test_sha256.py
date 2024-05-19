@@ -9,6 +9,10 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.fernet import Fernet
 import os
 import base64
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
+
+import hashlib
 
 len_salt = 32
 cpu_cost = 2**14
@@ -21,32 +25,63 @@ parallelism = 1
 # parallelism = 1
 
 
-
+key_method = 'sha256'
+# key_method = 'hkdf'
+# key_method = 'scrypt'
 
 def encrypt_data(data, password, salt=None):
     if salt is None:
         salt = os.urandom(16)
-    key, _ = derive_key(password, salt)
+    key, _ = derive_key(password, salt,
+                        method=key_method)
     cipher_suite = Fernet(key)
     encrypted_data = cipher_suite.encrypt(data)
     return encrypted_data, salt
 
 def decrypt_data(encrypted_data, password, salt):
-    key, _ = derive_key(password, salt)
+    key, _ = derive_key(password, salt,
+                        method=key_method)
     cipher_suite = Fernet(key)
     return cipher_suite.decrypt(encrypted_data)
 
-def derive_key(password, salt):
-    """ Derive a key from a password using Scrypt with a given salt """
-    kdf = Scrypt(
-        salt=salt,
-        length=len_salt,
-        n=cpu_cost,
-        r=block_size,
-        p=parallelism,
-        backend=default_backend()
-    )
-    key = kdf.derive(password)
+
+def derive_key(password, salt, method=key_method):
+    """ Derive a key from a password using Scrypt, HKDF, or SHA-256 based on the 'method' parameter """
+    if isinstance(password, bytes):
+        password_bytes = password
+    else:
+        password_bytes = password.encode('utf-8')
+    
+    if isinstance(salt, bytes):
+        salt_bytes = salt
+    else:
+        salt_bytes = salt.encode('utf-8')
+
+    if method == 'hkdf':
+        kdf = HKDF(
+            algorithm=hashes.SHA256(),
+            length=len_salt,
+            salt=salt_bytes,
+            info=b'handshake data',
+            backend=default_backend()
+        )
+    elif method == 'scrypt':
+        kdf = Scrypt(
+            salt=salt_bytes,
+            length=len_salt,
+            n=cpu_cost,
+            r=block_size,
+            p=parallelism,
+            backend=default_backend()
+        )
+    elif method == 'sha256':
+        # Combine the salt and the password
+        salted_password = salt_bytes + password_bytes
+        # Hash the salted password
+        hashed_password = hashlib.sha256(salted_password).digest()
+        return base64.urlsafe_b64encode(hashed_password), salt
+
+    key = kdf.derive(password_bytes)
     return base64.urlsafe_b64encode(key), salt
 
 
@@ -77,21 +112,23 @@ def hash_password(password, salt=None):
     if isinstance(password, str):
         password = password.encode('utf-8')
 
+    pt.t()
     key, _ = derive_key(password, salt)
+    pt.t()
     return key, salt.hex()
 
 def verify_password(file_path, password_to_check):
     stored_hash, stored_salt = load_hashed_password(file_path)
     # stored_hash, stored_salt = hash_password(password_to_check)
-    print("Stored Hash for Verification:", stored_hash)
-    print("Stored Salt for Verification:", stored_salt)
+    # print("Stored Hash for Verification:", stored_hash)
+    # print("Stored Salt for Verification:", stored_salt)
 
     if isinstance(password_to_check, str):
         password_to_check = password_to_check.encode('utf-8')
 
     check_hash, _ = hash_password(password_to_check, stored_salt)
-    print("Recomputed Hash for Verification:", check_hash)
-    print("Recomputed Salt for Verification:", stored_salt)
+    # print("Recomputed Hash for Verification:", check_hash)
+    # print("Recomputed Salt for Verification:", stored_salt)
 
     if stored_hash == check_hash:
         print("Password is correct.")
@@ -107,6 +144,7 @@ password = b"mysecretpassword"
 hashed_password, salt = hash_password(password)
 file_path = 'path_to_secure_storage/password_hash.bin'
 store_hashed_password(hashed_password, salt, file_path)
-pt.t(3)
+# pt.t(3)
+pt.c('---------------')
 verify_password(file_path, password)
-pt.t(3)
+# pt.t(3)
