@@ -19,6 +19,7 @@ class PasswordManager:
 
     def encrypt_data(self, data, password, salt=None):
         if salt is None:
+            # pt.ex()
             salt = os.urandom(16)
         key, _ = self.derive_key(password, salt)
         cipher_suite = Fernet(key)
@@ -30,7 +31,7 @@ class PasswordManager:
         cipher_suite = Fernet(key)
         return cipher_suite.decrypt(encrypted_data)
 
-    def derive_key(self, password, salt=None):
+    def derive_key(self, password, salt):
         if isinstance(password, bytes):
             password_bytes = password
         else:
@@ -58,25 +59,31 @@ class PasswordManager:
             hashed_password = hashlib.sha256(salted_password).digest()
             return base64.urlsafe_b64encode(hashed_password), salt
         elif self.key_method == 'bcrypt':
-            if salt is None:
-                salt = bcrypt.gensalt()
-            elif isinstance(salt, str):
-                salt = salt.encode('utf-8')
-            elif not isinstance(salt, bytes):
-                salt = bcrypt.gensalt()
-
-            hashed_password = bcrypt.hashpw(password_bytes, salt)
-            return base64.urlsafe_b64encode(hashed_password), salt
-
-
+            kdf = Scrypt(
+                salt=salt,
+                length=self.len_salt,
+                n=self.cpu_cost,
+                r=self.block_size,
+                p=self.parallelism,
+                backend=default_backend()
+            )
+            key = kdf.derive(password)
+            return base64.urlsafe_b64encode(key), salt
+        
         key = kdf.derive(password_bytes)
         return base64.urlsafe_b64encode(key), salt
 
     def store_hashed_password(self, hashed_password, salt, file_path):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         if isinstance(salt, bytes):
+            pt('salt is bytes')
             salt = salt.hex()
-        encrypted_hash_salt, encryption_salt = self.encrypt_data(hashed_password + bytes.fromhex(salt), b'encryption_key')
+            
+        if self.key_method == 'bcrypt':
+            encrypted_hash_salt, encryption_salt = self.encrypt_data(hashed_password + salt, b'encryption_key')
+        else:
+            encrypted_hash_salt, encryption_salt = self.encrypt_data(hashed_password + bytes.fromhex(salt), b'encryption_key')
+        
         with open(file_path, 'wb') as f:
             f.write(encryption_salt + encrypted_hash_salt)
 
@@ -91,15 +98,20 @@ class PasswordManager:
     
     def hash_password(self, password, salt=None):
         if salt is None:
-            salt = os.urandom(16)
+            hashing_salt = os.urandom(16)
         elif isinstance(salt, str):
-            salt = bytes.fromhex(salt)
+            hashing_salt = bytes.fromhex(salt)
 
         if isinstance(password, str):
             password = password.encode('utf-8')
 
+        if self.key_method == 'bcrypt':
+            hashing_salt = bcrypt.gensalt()
+            password = bcrypt.hashpw(password, hashing_salt)
+
+
         pt.t()
-        key, salt_hex = self.derive_key(password, salt)
+        key, salt_hex = self.derive_key(password, hashing_salt)
         pt.t()
         return key, salt_hex
 
