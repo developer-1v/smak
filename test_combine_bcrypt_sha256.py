@@ -30,28 +30,23 @@ class PasswordManager:
         cipher_suite = Fernet(key)
         return cipher_suite.decrypt(encrypted_data)
 
-    def derive_key(self, password, salt):
+    def derive_key(self, password, salt=None):
         if isinstance(password, bytes):
             password_bytes = password
         else:
             password_bytes = password.encode('utf-8')
         
-        if isinstance(salt, bytes):
-            salt_bytes = salt
-        else:
-            salt_bytes = salt.encode('utf-8')
-
         if self.key_method == 'hkdf':
             kdf = HKDF(
                 algorithm=hashes.SHA256(),
                 length=self.len_salt,
-                salt=salt_bytes,
+                salt=salt,
                 info=b'handshake data',
                 backend=default_backend()
             )
         elif self.key_method == 'scrypt':
             kdf = Scrypt(
-                salt=salt_bytes,
+                salt=salt,
                 length=self.len_salt,
                 n=self.cpu_cost,
                 r=self.block_size,
@@ -59,16 +54,20 @@ class PasswordManager:
                 backend=default_backend()
             )
         elif self.key_method == 'sha256':
-            salted_password = salt_bytes + password_bytes
+            salted_password = salt + password_bytes
             hashed_password = hashlib.sha256(salted_password).digest()
-            pt(base64.urlsafe_b64encode(hashed_password))
             return base64.urlsafe_b64encode(hashed_password), salt
         elif self.key_method == 'bcrypt':
-            hashed_password = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
-            return hashed_password, salt_bytes.hex()
+            if salt is None:
+                salt = bcrypt.gensalt()
+            elif not isinstance(salt, bytes):
+                salt = salt.encode('utf-8')  # Ensure salt is bytes, might need more specific handling depending on how salt is stored or passed
+            hashed_password = bcrypt.hashpw(password_bytes, salt)
+            # Rehash the bcrypt output with SHA256 to ensure it's the correct length and format
+            rehashed_password = hashlib.sha256(hashed_password).digest()
+            return base64.urlsafe_b64encode(rehashed_password), salt
 
         key = kdf.derive(password_bytes)
-        pt(base64.urlsafe_b64encode(key))
         return base64.urlsafe_b64encode(key), salt
 
     def store_hashed_password(self, hashed_password, salt, file_path):
