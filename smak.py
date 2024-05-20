@@ -366,15 +366,15 @@ class PasswordManager:
                 key_file.write(base64.urlsafe_b64encode(self.key))
             self.cipher = Fernet(self.key)
 
-    # def validate_password(self, current_password):
-    #     pt('validating password')
+    def validate_password(self, current_password):
+        pt('validating password')
         
-    #     settings = SettingsUtility.load_settings()
-    #     stored_encrypted_password = settings.get('password', None)
-    #     if stored_encrypted_password:
-    #         stored_password = self.decrypt_password(stored_encrypted_password)
-    #         return stored_password == current_password
-    #     return False
+        settings = SettingsUtility.load_settings()
+        stored_password = settings.get('password', None)
+        if self.is_encrypted:
+            stored_password = self.decrypt_password(stored_password)
+        
+        return stored_password == current_password
 
 
 class SettingsUtility:
