@@ -60,11 +60,11 @@ class PasswordManager:
         elif self.key_method == 'sha256':
             salted_password = salt_bytes + password_bytes
             hashed_password = hashlib.sha256(salted_password).digest()
-            pt(base64.urlsafe_b64encode(hashed_password))
+            # pt(base64.urlsafe_aab64encode(hashed_password))
             return base64.urlsafe_b64encode(hashed_password), salt
 
         key = kdf.derive(password_bytes)
-        pt(base64.urlsafe_b64encode(key))
+        # pt(base64.urlsafe_b64encode(key))
         return base64.urlsafe_b64encode(key), salt
 
     def store_hashed_password(self, hashed_password, salt, file_path):
@@ -93,9 +93,7 @@ class PasswordManager:
         if isinstance(password, str):
             password = password.encode('utf-8')
 
-        pt.t()
         key, _ = self.derive_key(password, salt)
-        pt.t()
         return key, salt.hex()
 
     def verify_password(self, file_path, password_to_check):
@@ -124,6 +122,6 @@ if __name__ == '__main__':
         hashed_password, salt = password_manager.hash_password(password)
         file_path = 'path_to_secure_storage/password_hash.bin'
         password_manager.store_hashed_password(hashed_password, salt, file_path)
-        pt.c('------START---------')
+        pt.t(method)
         password_manager.verify_password(file_path, password)
-        pt.c('---------------')
+        pt.t(method)

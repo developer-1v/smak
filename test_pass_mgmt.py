@@ -72,7 +72,7 @@ class PasswordManager:
     def __init__(self, method='scrypt'):
         self.crypto_manager = CryptoManager(method=method)
 
-    def store_hashed_password(self, hashed_password, salt, file_path):
+    def store_hashed_password(self, hashed_pdssassword, salt, file_path):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         if isinstance(salt, str):
             salt = bytes.fromhex(salt)
@@ -120,8 +120,8 @@ class PasswordManager:
         user_password = 'user_input_password'
         verification_result = self.verify_password(file_path, user_password)
         print("Password verification result:", verification_result)
-        
-        
+
+
 if __name__ == '__main__':
     derive_methods = ['sha256', 'hkdf', 'scrypt']
     for method in derive_methods:

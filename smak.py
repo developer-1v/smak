@@ -12,7 +12,6 @@
     Pypi:
         - Upload to pypi
         - give the pypi and the github the picture, an icon. 
-        
 
     CUSTOM Images:
     - Convert any user image to an icon file, and update it. 
@@ -22,8 +21,8 @@
     - Optional: change the name of the exe, and add a tooltip. 
     
     Chosen Encryption Methods:
-        - sha256, hkdf, scrypt, bcrypt
-        
+        - sha256, hkdf, scrypt
+
     Storing Key/salt in environment variable. 
     - Can I automate/python this? 
     - Do they need admin permissions?
@@ -45,7 +44,7 @@ from pystray import Icon, Menu, MenuItem
 from PIL import Image
 
 ## TODO: Consider moving this into Password management, and just import if encryption
-## is checked. 
+## is checked.
 from cryptography.fernet import Fernet, InvalidToken
 import base64
 
@@ -192,16 +191,16 @@ class SmakStopper:
         if hasattr(key, 'char') and key.char == '1':
             ## TODO: Temporary destroy for testing. 
             self.close()
-            
+        
         if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
             self.close()
         
     def on_press_production(self, key):
         
-        ## TODO: Enable this section for production
-        # if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
-        #     return
-        ##########
+        ## NOTE: This is needed for production. Currently being overridden 
+        ## in the development section to exit out early. KEEP THIS. 
+        if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
+            return
 
         if hasattr(key, 'char') and key.char:
             key_value = key.char
@@ -211,18 +210,18 @@ class SmakStopper:
 
         self.typed_keys.append(key_value)
         # Ensure we only check the last 'n' characters where 'n' is the length of the encrypted password
-        encrypted_password_length = len(''.join(self.password))  # Assuming self.password is the encrypted password
+        pass_len = len(''.join(self.password))  # Assuming self.password is the encrypted password
         pt(self.password)
         
-        if len(self.typed_keys) >= encrypted_password_length:
-            self.typed_keys = self.typed_keys[-encrypted_password_length:]
+        if len(self.typed_keys) >= pass_len:
+            self.typed_keys = self.typed_keys[-pass_len:]
 
             # Convert typed keys to a string for comparison
             typed_password = ''.join(self.typed_keys)
 
             if self.enable_encryption:
                 # Decrypt the stored password for comparison only if the length matches
-                if len(typed_password) == encrypted_password_length:
+                if len(typed_password) == pass_len:
                     try:
                         decrypted_password = self.password_manager.decrypt_password(''.join(self.password))
                         if typed_password == decrypted_password:
@@ -647,7 +646,7 @@ class SettingsDialog:
         
         self.position_checkboxes = {}
         positions_frame = tk.LabelFrame(self.settings_window, text="Message Locations", padx=5, pady=5)
-        positions_frame.pack(padx=10, pady=10, fill="both", expand=True)
+        positions_frame.pack(padx=10, pady=10)
         
         for i, position in enumerate(SmakStopper.positions):
             var = tk.BooleanVar(value=True)
@@ -667,13 +666,14 @@ class SettingsDialog:
         password_section_label.pack(pady=(10, 5))
 
         password_frame = tk.Frame(self.settings_window)
-        password_frame.pack(pady=5, fill=tk.X)
+        password_frame.pack(pady=5, expand=True)
+
 
         ## Current Password
         self.current_password_label = tk.Label(password_frame, text="Current Password:")
-        self.current_password_label.grid(row=0, column=0, sticky='e')
+        self.current_password_label.grid(row=0, column=0)
         self.current_password_entry = tk.Entry(password_frame, show="*")
-        self.current_password_entry.grid(row=0, column=1, sticky='ew')
+        self.current_password_entry.grid(row=0, column=1)
         self.toggle_current_password = tk.BooleanVar(value=False)
         self.current_password_checkbutton = tk.Checkbutton(
             password_frame, 
@@ -682,13 +682,13 @@ class SettingsDialog:
             command=lambda: self.toggle_password_visibility(
                 self.current_password_entry, self.toggle_current_password)
         )
-        self.current_password_checkbutton.grid(row=0, column=2)
+        self.current_password_checkbutton.grid(row=0, column=2, padx=33)
 
         ## New Password
         self.new_password_label = tk.Label(password_frame, text="New Password:")
-        self.new_password_label.grid(row=1, column=0, sticky='e')
+        self.new_password_label.grid(row=1, column=0, )
         self.new_password_entry = tk.Entry(password_frame, show="*")
-        self.new_password_entry.grid(row=1, column=1, sticky='ew')
+        self.new_password_entry.grid(row=1, column=1)
         self.toggle_new_password = tk.BooleanVar(value=False)
         self.new_password_checkbutton = tk.Checkbutton(
             password_frame, 
@@ -701,9 +701,9 @@ class SettingsDialog:
 
         ## Confirm New Password
         self.confirm_password_label = tk.Label(password_frame, text="Confirm New Password:")
-        self.confirm_password_label.grid(row=2, column=0, sticky='e')
+        self.confirm_password_label.grid(row=2, column=0, )
         self.confirm_password_entry = tk.Entry(password_frame, show="*")
-        self.confirm_password_entry.grid(row=2, column=1, sticky='ew')
+        self.confirm_password_entry.grid(row=2, column=1)
         self.toggle_confirm_password = tk.BooleanVar(value=False)
         self.confirm_password_checkbutton = tk.Checkbutton(
             password_frame, 
@@ -719,10 +719,11 @@ class SettingsDialog:
         encryption_frame.pack(fill=tk.X, pady=5)
         self.enable_encryption_checkbox = tk.Checkbutton(
             encryption_frame,
-            text="Encrypt Password", 
+            text="Encrypt Password (temporarily disabled)", 
             variable=self.enable_encryption  # Associate the BooleanVar with the Checkbutton
         )
-        self.enable_encryption_checkbox.pack(side=tk.TOP, anchor='center')
+        ## TODO: re-activate this when ready for encryption again. 
+        # self.enable_encryption_checkbox.pack(side=tk.TOP, anchor='center')
 
     def toggle_password_visibility(self, entry_widget, toggle_var):
         if toggle_var.get():
@@ -1056,7 +1057,9 @@ if __name__ == "__main__":
 
 
 '''
-I would like to replace the password manager class. I want 2 types of password systems. One that uses Sha256 and one that uses Bcrypt. Instead of the settings for "is_encrypted", we will use "is_sha256_psw" and "is_bcrypt_psw". And change any other variables as needed. So I want two different password management classes, depending on which encryption method is used. Also, instead of the "use encryption" checkbox, it should be radio buttons that say "Sha256 (faster)" and "bcrypt (more secure)", and under a label called "encryption methods". 
+
+
+
 '''
 
 
