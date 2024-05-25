@@ -117,9 +117,9 @@ class GetPass:
 if __name__ == "__main__":
     password = GetPass(
         character='*', 
-        use_random_characters=False,
+        use_random_characters=True,
         # display_nothing=False,
-        # characters='abcdefghijklmnopqrstuvwxyz'
+        characters=')(*&^%$#@!+=-0987654321;":][}{\|/?.>,<}]'
         )
     print(password)
 
