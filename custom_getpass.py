@@ -3,6 +3,30 @@ import random
 import secrets
 import msvcrt
 
+def getpass(
+    prompt="Password: ", 
+    character='*', 
+    display_nothing=False, 
+    use_random_characters=False, 
+    characters='abcdefghijklmnopqrstuvwxyz'
+    ):
+    
+    """
+    Function to securely get a password from the user, using the GetPass class.
+
+    Parameters:
+    - prompt (str): Message displayed for input. Default is "Password: ".
+    - character (str): Character displayed per keystroke. Default is '*'.
+    - display_nothing (bool): If True, hides characters during input (most secure). Default is False.
+    - use_random_characters (bool): If True, displays random characters. Default is False.
+    - characters (str): Characters used if `use_random_characters` is True. Default is lowercase alphabets.
+
+    Returns:
+    - str: The securely inputted password.
+    """
+    password_instance = GetPass(prompt, character, display_nothing, use_random_characters, characters)
+    return password_instance.password
+
 class GetPass:
     """
     This class provides a secure method for password input with
@@ -60,9 +84,10 @@ class GetPass:
         self.min_length = 1
         self.max_length = secrets.randbelow(35) + 28
         self.password = self.get_pass()
+        
 
-    def __str__(self):
-        return self.password  ## Return the password when the object is printed
+    # def __str__(self):
+    #     return self.password  ## Return the password when the object is printed
 
 
     def get_pass(self):
@@ -115,10 +140,10 @@ class GetPass:
         return password, displayed_count
 
 if __name__ == "__main__":
-    password = GetPass(
+    password = getpass(
         character='*', 
-        use_random_characters=True,
         # display_nothing=False,
+        use_random_characters=True,
         characters=')(*&^%$#@!+=-0987654321;":][}{\|/?.>,<}]'
         )
     print(password)

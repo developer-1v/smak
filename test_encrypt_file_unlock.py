@@ -1,3 +1,4 @@
+from print_tricks import pt
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
@@ -5,7 +6,6 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from base64 import urlsafe_b64encode
 import os
 from cryptography.fernet import Fernet
-# from getpass import getpass
 from custom_getpass import getpass
 
 def key_from_password(password: str, salt: bytes = None) -> bytes:
@@ -70,7 +70,9 @@ def main_cmd():
             print("Failed to decrypt the file.")
 
 def main_automated(file_path, password=None):
-    password = getpass("Enter password: ") if password is None else password
+    if password is None:
+        password = getpass("Enter password: ")  # Make sure to call getpass to get the password string
+    pt(password)
     key, salt = key_from_password(password)  # Unpack the key and salt
     encrypt_file(file_path, key, salt)
     input("Press enter to decrypt")
