@@ -36,10 +36,8 @@ def derive_key(password: str, salt: bytes, iterations: int = 100_000) -> bytes:
     return urlsafe_b64encode(key)
 
 def secure_delete_file(file_path: str, passes: int = 3):
-    """ Overwrite the file with random data and then delete it using secure delete library """
+    """ Overwrite the file with random data and then delete it using secure delete library"""
     secure_delete(file_path, passes=passes)
-
-
 
 def update_salt(salt: bytes):
     """ Securely update the salt file """
@@ -87,6 +85,7 @@ def validate_password(password: str) -> bool:
         return False
     return True
 
+
 def setup_password():
     """ Setup password and save salt and encrypted data """
     password = getpass("Set up password: ")
@@ -95,8 +94,9 @@ def setup_password():
     salt = os.urandom(16)
     update_salt(salt)
 
+    # Generate random data instead of using hardcoded sensitive data
+    data_to_encrypt = os.urandom(32)  # 32 bytes of random data
     key = derive_key(password, salt, derive_key_iterations)
-    data_to_encrypt = b"Example sensitive data"
     encrypted_data = encrypt_data(data_to_encrypt, key)
     update_encrypted_data(encrypted_data)
     print("Password setup complete and data encrypted.")
@@ -109,9 +109,8 @@ def unlock_password():
         print("Salt file not found. Please set up password first.")
         return
 
-    iterations = 150_000
     password_attempt = getpass("Enter password to unlock function: ")
-    key = derive_key(password_attempt, salt, iterations)
+    key = derive_key(password_attempt, salt, derive_key_iterations)
     try:
         encrypted_data = load_encrypted_data()
         fernet = Fernet(key)
@@ -126,8 +125,12 @@ def unlock_password():
 
 def ensure_directory():
     """ Ensure the SMAK directory exists in the user's app data folder """
-    # Securely fetch the APPDATA environment variable
-    app_data_path = os.path.join(os.environ.get('APPDATA', 'C:\\Users\\Default\\AppData'), 'SMAK')
+    # More robust handling of APPDATA environment variable
+    app_data = os.getenv('APPDATA')
+    if not app_data:
+        raise EnvironmentError("APPDATA environment variable not set.")
+    
+    app_data_path = os.path.join(app_data, 'SMAK')
     if not os.path.exists(app_data_path):
         os.makedirs(app_data_path)
     return app_data_path
@@ -135,22 +138,24 @@ def ensure_directory():
 def save_salt(salt: bytes):
     """ Save the salt to a file with restricted permissions """
     salt_path = os.path.join(ensure_directory(), 'salt.key')
-    with open(salt_path, "wb") as salt_file:
+    # Create file with restricted permissions securely
+    fd = os.open(salt_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as salt_file:
         salt_file.write(salt)
-    os.chmod(salt_path, 0o600)  # Owner can read and write, no permissions for others
+
+def save_encrypted_data(encrypted_data: bytes):
+    """ Save encrypted data to a file with restricted permissions """
+    data_path = os.path.join(ensure_directory(), 'credentials.txt')
+    # Create file with restricted permissions securely
+    fd = os.open(data_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as file:
+        file.write(encrypted_data)
 
 def load_salt() -> bytes:
     """ Load the salt from a file """
     salt_path = os.path.join(ensure_directory(), 'salt.key')
     with open(salt_path, "rb") as salt_file:
         return salt_file.read()
-
-def save_encrypted_data(encrypted_data: bytes):
-    """ Save encrypted data to a file with restricted permissions """
-    data_path = os.path.join(ensure_directory(), 'credentials.txt')
-    with open(data_path, "wb") as file:
-        file.write(encrypted_data)
-    os.chmod(data_path, 0o600)  # Owner can read and write, no permissions for others
 
 def load_encrypted_data() -> bytes:
     """ Load encrypted data from a file """
@@ -180,7 +185,7 @@ def main():
         unlock_password()
     else:
         print("Invalid action.")
-        
+
 def auto_test():
     setup_password()
     unlock_password()
@@ -188,10 +193,9 @@ def auto_test():
 if __name__ == "__main__":
     # main()
     auto_test()
-    
-    
-    
-    
+
+
+
 '''
 
 
