@@ -67,8 +67,7 @@ class GetPass:
     Instantiate GetPass with desired settings. The password is securely
     prompted and stored upon creation.
     """
-    
-    
+
     def __init__(self, 
             prompt="Password: ", 
             character='*', 
@@ -84,11 +83,6 @@ class GetPass:
         self.min_length = 1
         self.max_length = secrets.randbelow(35) + 28
         self.password = self.get_pass()
-        
-
-    # def __str__(self):
-    #     return self.password  ## Return the password when the object is printed
-
 
     def get_pass(self):
         print(self.prompt, end='', flush=True)
@@ -147,93 +141,6 @@ if __name__ == "__main__":
         characters=')(*&^%$#@!+=-0987654321;":][}{\|/?.>,<}]'
         )
     print(password)
-
-
-# import sys
-# import random
-# import secrets
-
-# def getpass(
-#         prompt="Password: ", 
-#         character='*', 
-#         display_nothing=False, 
-#         use_random_characters=False, 
-#         characters='abcdefghijklmnopqrstuvwxyz'
-#         ):
-    
-#     print(prompt, end='', flush=True)
-#     character = '' if display_nothing else character
-#     password = []
-#     min_length = 1
-#     max_length = secrets.randbelow(9) + 7  ## randbelow(9) gives a number from 0 to 8, adding 7 shifts it to 7 to 15
-    
-
-#     if sys.platform.startswith('win'):
-#         password = getpass_windows(password, min_length, max_length, use_random_characters, characters, character)
-#     ## TODO: implement unix version
-#     # else:
-#     #     password = getpass_unix(password, min_length, max_length, use_random_characters, characters, character)
-
-#     return ''.join(password)
-
-# def getpass_windows(password, min_length, max_length, use_random_characters, characters, character):
-#     import msvcrt
-#     displayed_count = 0  # Initialize displayed character count
-#     enter_key = b'\r'
-#     backspace_key = b'\x08'
-#     while True:
-#         ch = msvcrt.getch()
-#         if ch == enter_key:
-#             print('')
-#             break
-#         elif ch == backspace_key:
-#             if displayed_count > 0:
-#                 delete_count = secrets.randbelow(displayed_count) + 1
-#                 sys.stdout.write('\b \b' * delete_count)
-#                 sys.stdout.flush()
-#                 password = password[:-delete_count]
-#                 displayed_count -= delete_count
-#         else:
-#             password, displayed_count = append_display_char(password, ch.decode(), min_length, max_length, use_random_characters, characters, character, displayed_count)
-#     return password
-
-# def append_display_char(password, ch, min_length, max_length, use_random_characters, characters, character, displayed_count):
-#     password.append(ch)
-    
-#     delete_count = 0
-
-#     ## Randomly decide the number of characters to delete from display
-#     if displayed_count > min_length:
-#         delete_count = random.randint(min_length, displayed_count)
-#         # Clear the deleted characters from the display
-#         sys.stdout.write('\b \b' * delete_count)
-#         displayed_count -= delete_count
-    
-#     # Determine the number of characters to display, ensuring it's not equal to delete_count
-#     display_count = random.randint(min_length, max_length)
-#     while display_count == delete_count:
-#         display_count = random.randint(min_length, max_length)
-    
-#     if use_random_characters:
-#         display_chars = ''.join(random.choice(characters) for _ in range(display_count))
-#         sys.stdout.write(display_chars)
-#     else:
-#         display_char = character
-#         sys.stdout.write(display_char * display_count)
-    
-#     # Update the displayed count
-#     displayed_count += display_count
-    
-#     sys.stdout.flush()
-#     return password, displayed_count
-
-# if __name__ == "__main__":
-#     password = getpass(
-#         character='*', ## pass '' to display nothing
-#         # display_nothing=True,
-#         use_random_characters=False
-#     )
-#     print(password)
 
 
 
