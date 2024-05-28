@@ -60,14 +60,15 @@ def sanitize_password(password: str) -> str:
     return password
 
 def validate_password(password: str) -> bool:
-    """ Validate the password to ensure it meets the criteria, including sanitization. """
-    try:
-        password = sanitize_password(password)
-    except ValueError as e:
-        print(e)
-        return False
-
     """ Validate the password to ensure it meets the criteria """
+
+    ## Sanitization: Probs unecessary and too restricting.
+    # try:
+    #     password = sanitize_password(password)
+    # except ValueError as e:
+    #     print(e)
+    #     return False
+
     if len(password) < min_pass_length:
         print(f"Password must be at least {min_pass_length} character(s) long.")
         return False
