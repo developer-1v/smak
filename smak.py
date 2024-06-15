@@ -196,7 +196,6 @@ class SmakStopper:
             self.close()
         
     def on_press_production(self, key):
-        
         ## NOTE: This is needed for production. Currently being overridden 
         ## in the development section to exit out early. KEEP THIS. 
         if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
@@ -204,34 +203,35 @@ class SmakStopper:
 
         if hasattr(key, 'char') and key.char:
             key_value = key.char
+            pt(key_value)
+
+            self.typed_keys.append(key_value)
+            # Ensure we only check the last 'n' characters where 'n' is the length of the encrypted password
+            pass_len = len(''.join(self.password))  # Assuming self.password is the encrypted password
+            pt(self.password)
+            
+            if len(self.typed_keys) >= pass_len:
+                self.typed_keys = self.typed_keys[-pass_len:]
+
+                # Convert typed keys to a string for comparison
+                typed_password = ''.join(self.typed_keys)
+
+                if self.enable_encryption:
+                    # Decrypt the stored password for comparison only if the length matches
+                    if len(typed_password) == pass_len:
+                        try:
+                            decrypted_password = self.password_manager.decrypt_password(''.join(self.password))
+                            if typed_password == decrypted_password:
+                                self.close()
+                        except ValueError as e:
+                            print(f"Error decrypting password: {str(e)}")
+                else:
+                    # Direct comparison if encryption is not enabled
+                    if typed_password == ''.join(self.password):
+                        self.close()
         else:
-            key_value = key
-        pt(key_value)
-
-        self.typed_keys.append(key_value)
-        # Ensure we only check the last 'n' characters where 'n' is the length of the encrypted password
-        pass_len = len(''.join(self.password))  # Assuming self.password is the encrypted password
-        pt(self.password)
-        
-        if len(self.typed_keys) >= pass_len:
-            self.typed_keys = self.typed_keys[-pass_len:]
-
-            # Convert typed keys to a string for comparison
-            typed_password = ''.join(self.typed_keys)
-
-            if self.enable_encryption:
-                # Decrypt the stored password for comparison only if the length matches
-                if len(typed_password) == pass_len:
-                    try:
-                        decrypted_password = self.password_manager.decrypt_password(''.join(self.password))
-                        if typed_password == decrypted_password:
-                            self.close()
-                    except ValueError as e:
-                        print(f"Error decrypting password: {str(e)}")
-            else:
-                # Direct comparison if encryption is not enabled
-                if typed_password == ''.join(self.password):
-                    self.close()
+            # Handle non-character keys here if necessary
+            pass
 
     def run(self):
         self.start_keyboard_listener()
@@ -375,7 +375,6 @@ class PasswordManager:
             stored_password = self.decrypt_password(stored_password)
         
         return stored_password == current_password
-
 
 class SettingsUtility:
     auto_lock_time = 180
