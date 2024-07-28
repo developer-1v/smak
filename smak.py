@@ -29,6 +29,13 @@
         - If so, we can ask for admin permissions only if they select that 
         as an option. 
 
+
+
+
+
+
+
+
     '''
 
 
@@ -185,7 +192,7 @@ class SmakStopper:
         except Exception as e:
             pt(e)
             self.close()
-            
+
     def on_press_development(self, key):
 
         if hasattr(key, 'char') and key.char == '1':
@@ -194,7 +201,7 @@ class SmakStopper:
         
         if key == Key.esc and any(k in self.typed_keys for k in [Key.shift, Key.ctrl]):
             self.close()
-        
+
     def on_press_production(self, key):
         ## NOTE: This is needed for production. Currently being overridden 
         ## in the development section to exit out early. KEEP THIS. 
@@ -301,7 +308,7 @@ class PasswordManager:
                 print(f"Failed to decrypt with error: {e}")
                 return SettingsUtility.default_settings()['password']
         return password
-    
+
     def encrypt_password(self, password):
         if not self.cipher:
             self.update_encryption_setting(enable_encryption=True)
@@ -320,7 +327,7 @@ class PasswordManager:
         except Exception as e:
             print(f"Unexpected error during decryption: {e}")
             return SettingsUtility.default_settings()['password'], False
-    
+
     def initialize_cipher(self):
         pt('initialize cipher')
         try:
@@ -449,8 +456,6 @@ class SettingsDialog:
         
         self.load_settings()
         self.setup_window_contents()
-        
-
 
     def close(self):
         ##  release the grab and destroy the window
@@ -759,8 +764,6 @@ class SettingsDialog:
             self.display_option_var.set(3)
 
     def save_settings(self):
-
-
         auto_lock_enabled = self.auto_lock_var.get()
         auto_lock_time = self.process_auto_lock_time()
 
@@ -954,7 +957,7 @@ class WindowManager:
 
 class Win32PystrayIcon(Icon):
     WM_LBUTTONDBLCLK = 0x0203
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -970,7 +973,7 @@ class Win32PystrayIcon(Icon):
 def setup_tray_icon(window_manager):
     if sys.platform == 'win32':
         Icon = Win32PystrayIcon
-        
+
     def quit_app(icon, window_manager):
         # pt.profile_memory()
         try:
@@ -1013,7 +1016,7 @@ def setup_tray_icon(window_manager):
         "SMAK Stopper", None, "SMAK Stopper", menu,
         on_double_click=on_double_click if sys.platform == "win32" else None
     )
-    update_icon()  # Initial icon setup
+    update_icon()
     window_manager.tray_icon = icon  ## Store the icon in the WindowManager
     icon.run()
 
@@ -1032,6 +1035,8 @@ def main():
                 daemon=True)
             icon_thread.start()
         
+        print("App Initialized.")  # Print message here
+
         main_loop.run()
     except Exception as e:
         pt(e)
@@ -1049,6 +1054,7 @@ def main():
         ## Wait for the icon thread to finish
         if icon_thread:
             icon_thread.join()
+        print("App failed to start.")
         sys.exit()
 
 if __name__ == "__main__":

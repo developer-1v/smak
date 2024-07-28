@@ -1,5 +1,52 @@
 from print_tricks import pt
 
+
+
+''' pyside6 tests'''
+
+
+import sys
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
+from PySide6.QtAxContainer import QAxWidget
+
+class FileExplorerWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Embedded File Explorer")
+
+        # Create a central widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+        # Create a layout for the central widget
+        layout = QVBoxLayout(central_widget)
+
+        # Create the ActiveX control for Windows File Explorer
+        self.file_explorer = QAxWidget("Shell.Explorer.2")
+
+        # Add the ActiveX control to the layout
+        layout.addWidget(self.file_explorer)
+
+        # Set the initial directory (e.g., C:\)
+        self.file_explorer.dynamicCall("Navigate(const QString&)", "C:\\")
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = FileExplorerWindow()
+    window.show()
+    sys.exit(app.exec())
+
+
+
+
+
+
+
+
+
+
+''' Cryptography tests'''
+
 def run_tests():
     ...
     # basic_encrypt_decrypt(b"Hello, World!")
