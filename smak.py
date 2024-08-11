@@ -1038,7 +1038,7 @@ def main():
                 daemon=True)
             icon_thread.start()
         
-        print("App Initialized.")  # Print message here
+        pt("App Initialized.")  # Print message here
 
         main_loop.run()
     except Exception as e:
