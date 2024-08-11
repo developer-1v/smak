@@ -251,7 +251,8 @@ class SmakStopper:
         if self.smak_window and hasattr(self.smak_window, 'tk') and self.smak_window.winfo_exists():
             self.smak_window.destroy()
         if self.on_close_callback:
-            self.on_close_callback() 
+            self.on_close_callback()
+        pt('Disabled the Screen Lock')
 
 class PasswordManager:
     def __init__(self, settings_path):
@@ -849,8 +850,8 @@ class MainTKLoop:
 class WindowManager:
     def __init__(self, root):
         self.root = root
-        self.window1 = None
-        self.window2 = None
+        self.lock_screen_window = None
+        self.settings_dialog = None
         self.auto_lock_timer_thread = None
         self.auto_lock_time = SettingsUtility.auto_lock_time
         self.tray_icon = None
@@ -904,8 +905,8 @@ class WindowManager:
 
     def auto_lock(self):
         """ Trigger auto-lock by opening SmakStopper Window only if it's not already open."""
-        if not self.window1 or not self.window1.smak_window.winfo_exists():
-            self.root.after(0, self.toggle_window1)
+        if not self.lock_screen_window or not self.lock_screen_window.smak_window.winfo_exists():
+            self.root.after(0, self.toggle_lock_screen)
 
     def update_tray_icon(self):
         if self.tray_icon:
@@ -923,36 +924,37 @@ class WindowManager:
             self.icon_image_default = icon_image_default
             self.icon_image_locked = icon_image_locked
 
-    def toggle_window1(self):
-        if not self.window1 or not self.window1.smak_window.winfo_exists():
-            self.window1 = SmakStopper(
+    def toggle_lock_screen(self):
+        if not self.lock_screen_window or not self.lock_screen_window.smak_window.winfo_exists():
+            self.lock_screen_window = SmakStopper(
                 master=self.root, 
                 password_manager=self.password_manager,
-                on_close_callback=self.on_window1_close)
-            self.window1.run()
+                on_close_callback=self.on_lock_screen_window_close)
+            self.lock_screen_window.run()
             if self.tray_icon:
                 self.tray_icon.icon = self.icon_image_locked  ## Change icon to active
+            pt('Locked the Screen')
         else:
-            self.window1.close()
-            self.window1 = None
+            self.lock_screen_window.close()
+            self.lock_screen_window = None
             if self.tray_icon:
                 self.tray_icon.icon = self.icon_image_default  ## Change icon to default
 
-    def on_window1_close(self):
-        self.window1 = None
+    def on_lock_screen_window_close(self):
+        self.lock_screen_window = None
         if self.tray_icon:
-            self.tray_icon.icon = self.icon_image_default  ## Change icon to default when window1 is closed
+            self.tray_icon.icon = self.icon_image_default  ## Change icon to default when lock_screen_window is closed
 
-    def toggle_window2(self):
-        if not self.window2 or not self.window2.settings_window.winfo_exists():
-            self.window2 = SettingsDialog(
+    def toggle_settings_screen(self):
+        if not self.settings_dialog or not self.settings_dialog.settings_window.winfo_exists():
+            self.settings_dialog = SettingsDialog(
                 master=self.root, 
                 manager=self, 
                 password_manager=self.password_manager)
         else:
-            self.window2.settings_window.deiconify()  ## Restore the window if minimized
-            self.window2.settings_window.lift()       ## Bring the window to the top
-            self.window2.settings_window.focus_set()  ## Set focus to the window
+            self.settings_dialog.settings_window.deiconify()  ## Restore the window if minimized
+            self.settings_dialog.settings_window.lift()       ## Bring the window to the top
+            self.settings_dialog.settings_window.focus_set()  ## Set focus to the window
 
 
 class Win32PystrayIcon(Icon):
@@ -988,7 +990,7 @@ def setup_tray_icon(window_manager):
             print("Application exited cleanly.")
 
     def on_double_click(icon, item):
-        window_manager.toggle_window1()
+        window_manager.toggle_lock_screen()
 
     def update_icon():
         settings = SettingsUtility.load_settings()
@@ -1008,10 +1010,11 @@ def setup_tray_icon(window_manager):
     menu = (
         MenuItem('__SMAK STOPPER__', lambda: None),
         Menu.SEPARATOR,
-        MenuItem('Lock the Screen', lambda: window_manager.toggle_window1()),
-        MenuItem('Settings', lambda: window_manager.toggle_window2()),
+        MenuItem('Lock the Screen', lambda: window_manager.toggle_lock_screen()),
+        MenuItem('Settings', lambda: window_manager.toggle_settings_screen()),
         MenuItem('Quit', lambda: quit_app(icon, window_manager))
     )
+    
     icon = Icon(
         "SMAK Stopper", None, "SMAK Stopper", menu,
         on_double_click=on_double_click if sys.platform == "win32" else None
