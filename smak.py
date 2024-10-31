@@ -33,10 +33,20 @@
 
 
 
+git config --global init.templatedir '~/.git-templates'
 
+mkdir -p ~/.git-templates/hooks
 
+touch ~/.git-templates/hooks/pre-commit
+chmod +x ~/.git-templates/hooks/pre-commit
 
-    '''
+git config --global init.templatedir '~/.git-templates'
+chmod +x ~/.git-templates/hooks/pre-commit
+git config --global --get init.templatedir
+git config --global --get init.templatedir
+
+cd ~/.git-templates/hooks
+'''
 
 
 from print_tricks import pt

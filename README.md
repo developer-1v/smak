@@ -31,7 +31,7 @@ It's your personal digital bodyguard that locks up your keyboard and mouse, maki
 
 Simply download the app, and watch as chaos turns into calm (or at least, into less chaos).
 
-## Testimonials
+## Fake Testimonials
 
 - "Thanks to SMAK Stopper, my thesis survived my kitten's parkour session." - Relieved Grad Student
 - "Our office prankster thought my PC was frozen for a week. Best week ever!" - Grateful Employee
